@@ -8,6 +8,7 @@ import 'plan/create_plan_screen.dart'; // Thêm import cho CreatePlanScreen
 import 'focus_mode/focus_mode_screen.dart';
 import 'profile/profile_screen.dart';
 import 'friend/friend_screen.dart'; // Thêm import cho màn hình kết bạn
+import '../services/auth_service.dart'; // Import AuthService
 
 class MainScreen extends StatefulWidget {
   final Function(bool) onThemeChanged;
@@ -24,6 +25,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _fabAnimationController;
   late Animation<double> _fabAnimation;
+  final AuthService _authService = AuthService(); // Add this line
 
   final List<Widget> _screens = [];
 
@@ -45,13 +47,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _updateScreens();
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _fabAnimationController.dispose();
-    super.dispose();
-  }
-
   void _updateScreens() {
     _screens.clear();
     _screens.addAll([
@@ -60,7 +55,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       const BlockedAppScreen(), // Chuyển BlockedAppScreen xuống sau
       const FocusModeScreen(),
       const FriendScreen(),
-      const ProfileScreen(),
+      // Pass the AuthService instance to ProfileScreen
+      ProfileScreen(authService: _authService, onThemeChanged: widget.onThemeChanged), 
     ]);
   }
 

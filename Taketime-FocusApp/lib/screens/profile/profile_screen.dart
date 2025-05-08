@@ -8,40 +8,68 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../screens/blocked_apps/usage_statistics_screen.dart'; // Import cho AppUsageStatisticsScreen
 import '../../screens/main_screen.dart'; // Import cho MainScreen
 import '../../screens/login/login_screen.dart'; // Import cho LoginScreen
+import '../../services/auth_service.dart'; // Import AuthService
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final AuthService authService; // Add this
+  final Function(bool) onThemeChanged; // Add this
+
+  const ProfileScreen({super.key, required this.authService, required this.onThemeChanged}); // Modify constructor
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  String _userName = "Đang tải..."; // Giá trị mặc định
+  String _userEmail = "Đang tải..."; // Giá trị mặc định
+  String? _avatarUrl; // Thêm để lưu URL avatar từ Supabase
+  File? _profileImage; // Giữ lại để xử lý avatar local
+  final ImagePicker _picker = ImagePicker();
+  bool _isLoadingProfile = true;
+
   // Sample data for statistics
   final List<double> weeklyUsageData = [3.2, 2.8, 3.7, 4.5, 2.9, 3.8, 4.2];
   final List<String> weekDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   
-  // Biến lưu thông tin người dùng
-  String _userName = "Nguyễn Văn A";
-  String _userEmail = "nguyenvana@email.com";
-  
-  // Biến lưu ảnh đại diện
-  File? _profileImage;
-  final ImagePicker _picker = ImagePicker();
-
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    _loadProfileImage();
+    _fetchAndSetUserProfile();
+    _loadProfileImage(); // Giữ lại để tải avatar local nếu có
   }
 
-  // Hàm tải thông tin người dùng từ SharedPreferences
-  Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _fetchAndSetUserProfile() async {
+    if (!mounted) return;
     setState(() {
-      _userName = prefs.getString('user_name') ?? "Nguyễn Văn A";
-      _userEmail = prefs.getString('user_email') ?? "nguyenvana@email.com";
+      _isLoadingProfile = true;
+    });
+
+    final userProfileData = await widget.authService.fetchUserProfile();
+
+    if (!mounted) return;
+
+    setState(() {
+      if (userProfileData != null) {
+        // Sử dụng các key đã được chuẩn hóa trong fetchUserProfile
+        _userName = userProfileData['full_name'] ?? userProfileData['username'] ?? "Người dùng";
+        _userEmail = userProfileData['email'] ?? "Không có email";
+        _avatarUrl = userProfileData['avatar_url']; 
+        
+        print("ProfileScreen: User profile loaded: Name: $_userName, Email: $_userEmail, Avatar: $_avatarUrl");
+
+      } else {
+        final currentUser = widget.authService.currentUser;
+        if (currentUser != null && currentUser.email != null) {
+          _userName = "Người dùng"; 
+          _userEmail = currentUser.email!;
+        } else {
+          _userName = "Người dùng";
+          _userEmail = "Lỗi tải hồ sơ";
+        }
+        print("ProfileScreen: Failed to load user profile. Fallback: Name: $_userName, Email: $_userEmail");
+      }
+      _isLoadingProfile = false;
     });
   }
 
@@ -139,21 +167,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           // Back Button - Sửa để quay về trang chính
                           IconButton(
                             onPressed: () {
-                              // Thay vì sử dụng named routes, trở về trang chính bằng cách pop hết các màn hình
-                              // và đưa MainScreen làm màn hình gốc
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(
-                                  builder: (context) => MainScreen(
-                                    onThemeChanged: (isDark) {
-                                      // Nếu cần, xử lý thay đổi chủ đề ở đây
-                                    }, 
-                                    onLogout: () {
-                                      // Xử lý đăng xuất ở đây nếu cần
-                                    }
-                                  ),
-                                ),
-                                (route) => false,
-                              );
+                              if (Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              } else {
+                                // Trường hợp không có màn hình nào để pop, có thể điều hướng đến MainScreen
+                                // hoặc xử lý theo logic của ứng dụng.
+                                // Ví dụ: Navigator.of(context).pushReplacement(...);
+                              }
                             },
                             icon: const Icon(Icons.arrow_back, color: Colors.white),
                           ),
@@ -194,21 +214,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(45),
-                              child: _profileImage != null
-                                  ? Image.file(
-                                      _profileImage!,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.asset(
-                                      'assets/avatar.jpg',
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const CircleAvatar(
-                                          backgroundColor: Colors.blueGrey,
-                                          child: Icon(Icons.person, size: 45, color: Colors.white),
-                                        );
-                                      },
-                                    ),
+                              child: _isLoadingProfile
+                                  ? const Center(child: CircularProgressIndicator(color: Colors.white)) // Hiển thị loading cho avatar
+                                  : _profileImage != null
+                                      ? Image.file(
+                                          _profileImage!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : _avatarUrl != null && _avatarUrl!.isNotEmpty
+                                          ? Image.network( // Hiển thị avatar từ URL nếu có
+                                              _avatarUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                print("Error loading network avatar: $error");
+                                                return Image.asset('assets/avatar.jpg', fit: BoxFit.cover); // Fallback nếu lỗi tải URL
+                                              },
+                                              loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return Center(
+                                                  child: CircularProgressIndicator(
+                                                    value: loadingProgress.expectedTotalBytes != null
+                                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                        : null,
+                                                    color: Colors.white,
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          : Image.asset( // Fallback cuối cùng nếu không có local và URL
+                                              'assets/avatar.jpg',
+                                              fit: BoxFit.cover,
+                                            ),
                             ),
                           ),
                           // Camera icon
@@ -235,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       
                       // User Name
                       Text(
-                        _userName,
+                        _isLoadingProfile ? "Đang tải..." : _userName,
                         style: GoogleFonts.poppins(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -244,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _userEmail,
+                        _isLoadingProfile ? "Đang tải..." : _userEmail,
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.9),
@@ -516,8 +552,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditProfileDialog(BuildContext context) {
-    final TextEditingController nameController = TextEditingController(text: _userName);
-    final TextEditingController emailController = TextEditingController(text: _userEmail);
+    final TextEditingController nameController = TextEditingController(text: _isLoadingProfile ? "" : _userName);
+    final TextEditingController emailController = TextEditingController(text: _isLoadingProfile ? "" : _userEmail);
     
     showDialog(
       context: context,
@@ -563,6 +599,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.email),
                 ),
+                readOnly: true, // Email thường không cho sửa trực tiếp, lấy từ Supabase Auth
               ),
             ],
           ),
@@ -574,7 +611,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              _saveUserData(nameController.text, emailController.text);
+              // Chỉ lưu tên nếu email là read-only
+              _saveUserData(nameController.text, _userEmail); 
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -680,23 +718,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Thêm hàm xử lý đăng xuất
   Future<void> _handleLogout(BuildContext context) async {
     try {
-      // Xóa thông tin đăng nhập từ SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      // Đặt trạng thái đăng nhập thành false
-      await prefs.setBool('is_logged_in', false);
+      // Xóa thông tin đăng nhập từ SharedPreferences (nếu bạn dùng cho việc khác ngoài session Supabase)
+      // final prefs = await SharedPreferences.getInstance();
+      // await prefs.remove('user_name'); 
+      // await prefs.remove('user_email');
+      // await prefs.remove('profile_image_path');
+      // await prefs.setBool('is_logged_in', false); // This might not be needed if relying on Supabase session
+
+      await widget.authService.signOut(); // Use AuthService to sign out from Supabase
       
-      // Thay vì sử dụng named routes, trở về màn hình đăng nhập 
-      // bằng cách pop hết các màn hình và đưa LoginScreen làm màn hình gốc
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => LoginScreen(
-            onLogin: () {
-              // Xử lý đăng nhập thành công ở đây nếu cần
-            },
-          ),
-        ),
-        (route) => false,
-      );
+      // onAuthStateChange in app.dart should handle navigation to LoginScreen
+      // No need to manually push LoginScreen here if app.dart handles it.
+      // Navigator.of(context).pushAndRemoveUntil(
+      //   MaterialPageRoute(
+      //     builder: (context) => LoginScreen(
+      //       onLogin: () {
+      //         // Xử lý đăng nhập thành công ở đây nếu cần
+      //       },
+      //     ),
+      //   ),
+      //   (route) => false,
+      // );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Add this import
+import 'dart:async'; // Add this import for StreamSubscription
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -14,6 +16,44 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.light;
   bool _isLoggedIn = false;
+  late final StreamSubscription<AuthState> _authStateSubscription; // Add this
+
+  @override
+  void initState() { // Add initState
+    super.initState();
+    _initializeAuthStateListener();
+    _checkInitialAuthState(); 
+  }
+
+  Future<void> _checkInitialAuthState() async {
+    // It's good practice to wait for Supabase to be fully initialized
+    // if main() involves async operations before Supabase.initialize.
+    // However, Supabase.instance.client should be available if initialize completed.
+    await Future.delayed(Duration.zero); // Ensures the frame is built
+    if (mounted) {
+      final session = Supabase.instance.client.auth.currentSession;
+      setState(() {
+        _isLoggedIn = session != null;
+      });
+    }
+  }
+
+  void _initializeAuthStateListener() {
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final Session? session = data.session;
+      if (mounted) { // Check if the widget is still in the tree
+        setState(() {
+          _isLoggedIn = session != null;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() { // Add dispose
+    _authStateSubscription.cancel();
+    super.dispose();
+  }
 
   void toggleTheme(bool isDark) {
     setState(() {
@@ -22,9 +62,13 @@ class _MyAppState extends State<MyApp> {
   }
   
   void setLoggedIn(bool value) {
-    setState(() {
-      _isLoggedIn = value;
-    });
+    // This method might still be used by guest login or other flows.
+    // However, for Supabase OAuth, _authStateSubscription will primarily drive _isLoggedIn.
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = value;
+      });
+    }
   }
 
   @override
