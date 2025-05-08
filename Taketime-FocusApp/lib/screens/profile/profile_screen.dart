@@ -8,9 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../screens/blocked_apps/usage_statistics_screen.dart'; // Import cho AppUsageStatisticsScreen
 import '../../screens/main_screen.dart'; // Import cho MainScreen
 import '../../screens/login/login_screen.dart'; // Import cho LoginScreen
+import '../../services/auth_service.dart'; // Import AuthService
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final AuthService authService; // Add this
+  final Function(bool) onThemeChanged; // Add this
+
+  const ProfileScreen({super.key, required this.authService, required this.onThemeChanged}); // Modify constructor
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -139,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           // Back Button - Sửa để quay về trang chính
                           IconButton(
                             onPressed: () {
-                              // Thay vì sử dụng named routes, trở về trang chính bằng cách pop hết các màn hình
+                              // Thay vì sử dụng named routes, quay về trang chính bằng cách pop hết các màn hình
                               // và đưa MainScreen làm màn hình gốc
                               Navigator.of(context).pushAndRemoveUntil(
                                 MaterialPageRoute(
@@ -680,23 +684,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Thêm hàm xử lý đăng xuất
   Future<void> _handleLogout(BuildContext context) async {
     try {
-      // Xóa thông tin đăng nhập từ SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      // Đặt trạng thái đăng nhập thành false
-      await prefs.setBool('is_logged_in', false);
+      // Xóa thông tin đăng nhập từ SharedPreferences (nếu bạn dùng cho việc khác ngoài session Supabase)
+      // final prefs = await SharedPreferences.getInstance();
+      // await prefs.remove('user_name'); 
+      // await prefs.remove('user_email');
+      // await prefs.remove('profile_image_path');
+      // await prefs.setBool('is_logged_in', false); // This might not be needed if relying on Supabase session
+
+      await widget.authService.signOut(); // Use AuthService to sign out from Supabase
       
-      // Thay vì sử dụng named routes, trở về màn hình đăng nhập 
-      // bằng cách pop hết các màn hình và đưa LoginScreen làm màn hình gốc
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => LoginScreen(
-            onLogin: () {
-              // Xử lý đăng nhập thành công ở đây nếu cần
-            },
-          ),
-        ),
-        (route) => false,
-      );
+      // onAuthStateChange in app.dart should handle navigation to LoginScreen
+      // No need to manually push LoginScreen here if app.dart handles it.
+      // Navigator.of(context).pushAndRemoveUntil(
+      //   MaterialPageRoute(
+      //     builder: (context) => LoginScreen(
+      //       onLogin: () {
+      //         // Xử lý đăng nhập thành công ở đây nếu cần
+      //       },
+      //     ),
+      //   ),
+      //   (route) => false,
+      // );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

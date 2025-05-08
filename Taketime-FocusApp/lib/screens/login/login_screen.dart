@@ -3,6 +3,9 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:smartmanagementapp/services/auth_service.dart';
+import 'package:smartmanagementapp/widgets/google_login_button.dart';
+import 'package:smartmanagementapp/widgets/facebook_login_button.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLogin;
@@ -17,10 +20,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   late AnimationController _backgroundAnimationController;
-  
+  late AuthService _authService; // Declare AuthService instance
+
   @override
   void initState() {
     super.initState();
+    _authService = AuthService(); // Initialize AuthService
     _backgroundAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 20),
@@ -185,7 +190,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         delay: const Duration(milliseconds: 800),
                         child: GlassmorphicContainer(
                           width: double.infinity,
-                          height: 250,
+                          // Adjusted height if necessary, or let it size by children
+                          height: 250, 
                           borderRadius: 30,
                           blur: 10,
                           alignment: Alignment.center,
@@ -212,36 +218,67 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Login Buttons
-                                _buildSocialLoginButton(
-                                  context,
-                                  "Đăng nhập với Google",
-                                  const Color(0xFFDB4437),
-                                  Icons.email_outlined,
-                                  widget.onLogin,
-                                  delayMs: 0,
+                                // Sử dụng GoogleLoginButton mới
+                                FadeInUp(
+                                  delay: const Duration(milliseconds: 800),
+                                  child: GoogleLoginButton(
+                                    onPressed: () async {
+                                      try {
+                                        await _authService.signInWithGoogle();
+                                        // onAuthStateChange in app.dart will handle navigation
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text("Lỗi đăng nhập Google: ${e.toString()}")),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
                                 ),
                                 
                                 const SizedBox(height: 16),
                                 
-                                _buildSocialLoginButton(
-                                  context,
-                                  "Đăng nhập với Facebook",
-                                  const Color(0xFF3b5998),
-                                  Icons.facebook,
-                                  widget.onLogin,
-                                  delayMs: 100,
+                                // Sử dụng FacebookLoginButton mới
+                                FadeInUp(
+                                  delay: const Duration(milliseconds: 900), // delay +100ms
+                                  child: FacebookLoginButton(
+                                    onPressed: () async {
+                                      try {
+                                        await _authService.signInWithFacebook();
+                                        // onAuthStateChange in app.dart will handle navigation
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text("Lỗi đăng nhập Facebook: ${e.toString()}")),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
                                 ),
                                 
                                 const SizedBox(height: 16),
                                 
-                                _buildSocialLoginButton(
+                                // Nút đăng nhập khách (giữ nguyên nếu cần)
+                                _buildSocialLoginButton( // Giữ lại hàm này cho nút Khách
                                   context,
                                   "Tiếp tục với tư cách khách",
                                   Colors.grey.shade700,
                                   Icons.person_outline,
-                                  widget.onLogin,
-                                  delayMs: 200,
+                                  () async {
+                                    try {
+                                      await _authService.signInAsGuest(); // Now uses Supabase anonymous sign-in
+                                      // onAuthStateChange in app.dart will handle navigation
+                                    } catch (e) {
+                                       if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text("Lỗi đăng nhập khách: ${e.toString()}")),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  delayMs: 200, // So với FadeInUp gốc là 800 + 200 = 1000ms
                                 ),
                               ],
                             ),
@@ -279,6 +316,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
+  // Giữ lại hàm này nếu bạn vẫn dùng cho nút "Tiếp tục với tư cách khách"
+  // Hoặc bạn có thể tạo một widget riêng cho nút khách nếu muốn.
   Widget _buildSocialLoginButton(
     BuildContext context,
     String text,
@@ -288,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     required int delayMs,
   }) {
     return FadeInUp(
-      delay: Duration(milliseconds: 800 + delayMs),
+      delay: Duration(milliseconds: 800 + delayMs), // Giữ nguyên logic delay gốc
       child: Container(
         width: double.infinity,
         height: 50,
