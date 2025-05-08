@@ -220,11 +220,8 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
       : _getDateString(DateTime.now());
     final Map<String, int> dayData = _dailyUsageData[selectedDate] ?? {};
     
-    // Tính tổng thời gian sử dụng trong ngày
-    int totalMinutes = 0;
-    dayData.forEach((_, minutes) {
-      totalMinutes += minutes;
-    });
+    // Tính tổng thời gian sử dụng trong ngày bằng cách sử dụng fold
+    final int totalMinutes = dayData.values.fold(0, (sum, minutes) => sum + minutes);
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

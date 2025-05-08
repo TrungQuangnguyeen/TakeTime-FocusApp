@@ -8,8 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Check your pubspec.yaml for the correct package name
-import 'package:smart_management_app/app.dart'; // Try this path format
+// Fix: Use the correct package name from pubspec.yaml
+import 'package:smartmanagementapp/app.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {

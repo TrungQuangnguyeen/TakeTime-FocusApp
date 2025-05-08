@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'activity_details_screen.dart'; // Import cho ActivityDetailsScreen
+import '../../screens/blocked_apps/usage_statistics_screen.dart'; // Import cho AppUsageStatisticsScreen
 import '../../screens/main_screen.dart'; // Import cho MainScreen
 import '../../screens/login/login_screen.dart'; // Import cho LoginScreen
 
@@ -438,7 +438,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const ActivityDetailsScreen()),
+                                  MaterialPageRoute(builder: (context) => const AppUsageStatisticsScreen()),
                                 );
                               },
                               style: TextButton.styleFrom(

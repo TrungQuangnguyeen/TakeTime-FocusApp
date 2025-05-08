@@ -20,7 +20,7 @@ class _FocusModeScreenState extends State<FocusModeScreen> with SingleTickerProv
   int _selectedFocusTime = 25; // Mặc định thời gian Pomodoro
   int _customTimeMinutes = 45; // Mặc định thời gian tùy chọn
   late AnimationController _animationController;
-  late Animation<double> _animation;
+  // Removed unused _animation field
   final TextEditingController _customTimeController = TextEditingController();
   
   @override
@@ -30,10 +30,7 @@ class _FocusModeScreenState extends State<FocusModeScreen> with SingleTickerProv
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
+
     _customTimeController.text = _customTimeMinutes.toString();
   }
   
