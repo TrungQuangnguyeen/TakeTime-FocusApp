@@ -18,7 +18,9 @@ class AuthService {
     }
 
     try {
-      print('AuthService: Fetching profile directly from user object for user ${user.id}');
+      print(
+        'AuthService: Fetching profile directly from user object for user ${user.id}',
+      );
       Map<String, dynamic> userProfileData = {};
 
       // 1. Lấy email trực tiếp từ đối tượng user
@@ -34,7 +36,7 @@ class AuthService {
       // Ví dụ:
       // - Facebook: 'name', 'picture' (có thể là một Map picture.data.url)
       // - Google: 'name', 'full_name', 'avatar_url', 'picture'
-      
+
       final metadata = user.userMetadata;
       print('AuthService: User metadata: $metadata');
 
@@ -47,9 +49,8 @@ class AuthService {
         }
         // Thử lấy 'preferred_username' nếu có, thường dùng cho tên đăng nhập
         if (metadata.containsKey('preferred_username')) {
-            userProfileData['username'] = metadata['preferred_username'];
+          userProfileData['username'] = metadata['preferred_username'];
         }
-
 
         // Lấy URL ảnh đại diện
         if (metadata.containsKey('avatar_url')) {
@@ -58,35 +59,47 @@ class AuthService {
           dynamic pictureData = metadata['picture'];
           if (pictureData is String) {
             userProfileData['avatar_url'] = pictureData;
-          } else if (pictureData is Map && pictureData.containsKey('data') && pictureData['data'] is Map && pictureData['data'].containsKey('url')) {
+          } else if (pictureData is Map &&
+              pictureData.containsKey('data') &&
+              pictureData['data'] is Map &&
+              pictureData['data'].containsKey('url')) {
             // Cấu trúc ảnh đại diện của Facebook: { "data": { "url": "..." } }
             userProfileData['avatar_url'] = pictureData['data']['url'];
           }
         }
       }
-      
+
       // Nếu không có tên đầy đủ, thử sử dụng phần đầu của email làm tên mặc định
       if (userProfileData['full_name'] == null && user.email != null) {
         userProfileData['full_name'] = user.email!.split('@').first;
       }
 
-
       if (userProfileData.isEmpty) {
-        print('AuthService: No profile data could be extracted from user object.');
+        print(
+          'AuthService: No profile data could be extracted from user object.',
+        );
         // Trả về email làm fallback nếu có
-        if (user.email != null) return {'email': user.email, 'full_name': user.email!.split('@').first};
+        if (user.email != null)
+          return {
+            'email': user.email,
+            'full_name': user.email!.split('@').first,
+          };
         return null;
       }
-      
-      print('AuthService: Returning profile data from user object: $userProfileData');
-      return userProfileData;
 
+      print(
+        'AuthService: Returning profile data from user object: $userProfileData',
+      );
+      return userProfileData;
     } catch (e) {
       print('AuthService: Error fetching user profile from user object: $e');
       // Fallback: trả về ít nhất email nếu có, nếu không thì null
       final currentUserEmail = _supabase.auth.currentUser?.email;
       if (currentUserEmail != null) {
-        return {'email': currentUserEmail, 'full_name': currentUserEmail.split('@').first};
+        return {
+          'email': currentUserEmail,
+          'full_name': currentUserEmail.split('@').first,
+        };
       }
       return null;
     }
@@ -151,5 +164,11 @@ class AuthService {
       print('Unexpected Anonymous Sign-In Error: $e');
       rethrow;
     }
+  }
+
+  // Thêm hàm này để lấy access token Supabase
+  Future<String?> getAccessToken() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    return session?.accessToken;
   }
 }

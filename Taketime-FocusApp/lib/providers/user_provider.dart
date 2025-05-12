@@ -1,352 +1,596 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
-import 'dart:math';
+import '../models/friend_request_model.dart'; // Correct import for FriendRequest
 
-class UserProvider extends ChangeNotifier {
+class UserProvider with ChangeNotifier {
   UserModel? _currentUser;
-  final List<UserModel> _users = [];
-  final List<FriendRequest> _friendRequests = [];
+  List<UserModel> _friends = []; // Stores list of friends
+  List<FriendRequest> _incomingFriendRequests = [];
+  List<FriendRequest> _outgoingFriendRequests = [];
+  List<FriendRequest> _acceptedFriendships =
+      []; // Stores accepted friend requests
   bool _isLoading = false;
+  String? _accessToken;
+  List<UserModel> _searchedUsers = [];
 
+  //final String _baseUrl = "http://localhost:5220";
+  final String _baseUrl =
+      "http://10.0.2.2:5220"; // Replace with your actual base URL
+
+  // Getters
   UserModel? get currentUser => _currentUser;
-  List<UserModel> get users => _users;
+  List<UserModel> get friends => _friends;
+  List<FriendRequest> get incomingFriendRequests => _incomingFriendRequests;
+  List<FriendRequest> get outgoingFriendRequests => _outgoingFriendRequests;
+  List<FriendRequest> get acceptedFriendships =>
+      _acceptedFriendships; // Getter for accepted friendships
   bool get isLoading => _isLoading;
+  List<UserModel> get searchedUsers => _searchedUsers;
 
-  // Danh sách bạn bè của người dùng hiện tại
-  List<UserModel> get friends {
-    if (_currentUser == null) return [];
-    return _users.where((user) => 
-      _currentUser!.friendIds.contains(user.id)).toList();
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json; charset=UTF-8',
+    if (_accessToken != null) 'Authorization': _accessToken!, // KHÔNG có Bearer
+  };
+
+  void setAuthToken(String? token) {
+    _accessToken = token;
+    if (token != null) {
+      print(
+        '[UserProvider] Auth token set. Fetching current user, friends, and friend requests.',
+      );
+      fetchCurrentUser();
+      fetchFriends();
+      fetchFriendRequests(); // This will now also populate _acceptedFriendships
+    } else {
+      print('[UserProvider] Auth token cleared. Clearing user data.');
+      _currentUser = null;
+      _friends = [];
+      _incomingFriendRequests = [];
+      _outgoingFriendRequests = [];
+      _acceptedFriendships = []; // Clear accepted friendships
+      _searchedUsers = [];
+    }
+    notifyListeners();
   }
 
-  // Danh sách yêu cầu kết bạn đến người dùng hiện tại
-  List<FriendRequest> get incomingRequests {
-    if (_currentUser == null) return [];
-    return _friendRequests.where((request) => 
-      request.receiverId == _currentUser!.id && 
-      request.status == 'pending').toList();
-  }
+  Future<void> fetchCurrentUser() async {
+    print('[UserProvider] fetchCurrentUser called.'); // Added log
+    if (_accessToken == null) {
+      print(
+        '[UserProvider] fetchCurrentUser: _accessToken is null, returning.',
+      ); // Added log
+      return;
+    }
+    print(
+      '[UserProvider] Current Access Token being used for /api/User/me: $_accessToken',
+    );
 
-  // Danh sách yêu cầu kết bạn từ người dùng hiện tại
-  List<FriendRequest> get outgoingRequests {
-    if (_currentUser == null) return [];
-    return _friendRequests.where((request) => 
-      request.senderId == _currentUser!.id && 
-      request.status == 'pending').toList();
-  }
-
-  // Lấy thông tin người dùng từ UserID
-  UserModel? getUserById(String userId) {
+    _isLoading = true;
+    notifyListeners();
     try {
-      return _users.firstWhere((user) => user.id == userId);
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/User/me'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        _currentUser = UserModel.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+      } else {
+        print(
+          'Failed to fetch current user: ${response.statusCode} ${response.body}',
+        );
+        _currentUser = null;
+      }
     } catch (e) {
-      return null;
+      print('Error fetching current user: $e');
+      _currentUser = null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  // Khởi tạo dữ liệu người dùng (mô phỏng)
-  Future<void> initUsers() async {
+  Future<void> fetchFriends() async {
+    print('[UserProvider] fetchFriends called.'); // Added log
+    if (_accessToken == null) {
+      print(
+        '[UserProvider] fetchFriends: _accessToken is null, returning.',
+      ); // Added log
+      _friends = [];
+      notifyListeners(); // Notify even if token is null to clear list
+      return;
+    }
     _isLoading = true;
     notifyListeners();
-
+    List<UserModel> successfullyParsedFriends = [];
     try {
-      // Giả lập dữ liệu cho demo
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Người dùng hiện tại
-      _currentUser = UserModel(
-        id: "user123",
-        name: "Nguyễn Văn A",
-        email: "nguyenvana@email.com",
-        avatarUrl: "assets/avatar.jpg",
-        daysUsed: 23,
-        achievements: 17,
-        efficiency: 85,
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/FriendShip/friends'),
+        headers: _headers,
       );
 
-      // Thêm một số người dùng mẫu
-      _users.addAll([
-        _currentUser!,
-        UserModel(
-          id: "user456",
-          name: "Trần Thị B",
-          email: "tranthib@email.com",
-          avatarUrl: "assets/avatar.jpg",
-          daysUsed: 45,
-          achievements: 23,
-          efficiency: 92,
-        ),
-        UserModel(
-          id: "user789",
-          name: "Lê Văn C",
-          email: "levanc@email.com",
-          avatarUrl: "assets/avatar.jpg",
-          daysUsed: 30,
-          achievements: 15,
-          efficiency: 78,
-        ),
-        UserModel(
-          id: "user101",
-          name: "Phạm Thị D",
-          email: "phamthid@email.com",
-          avatarUrl: "assets/avatar.jpg",
-          daysUsed: 60,
-          achievements: 35,
-          efficiency: 95,
-        ),
-        UserModel(
-          id: "user202",
-          name: "Hoàng Văn E",
-          email: "hoangvane@email.com",
-          avatarUrl: "assets/avatar.jpg",
-          daysUsed: 15,
-          achievements: 8,
-          efficiency: 70,
-        ),
-      ]);
-      
-      _isLoading = false;
-      notifyListeners();
+      print('[UserProvider] Fetch Friends Status Code: ${response.statusCode}');
+      print(
+        '[UserProvider] Fetch Friends Response Body: ${response.body}',
+      ); // Uncommented for detailed API response
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+        for (var item in data) {
+          try {
+            // The API /api/FriendShip/friends returns a flat list of user objects
+            // No need to look for 'friendUser' or 'friend_user' here.
+            // Each 'item' is a friend's data directly.
+            // UserModel.fromJson will now handle the different key names (e.g., user_id, full_name)
+            // Note: friendshipId might be missing from this endpoint's response.
+            successfullyParsedFriends.add(
+              UserModel.fromJson(item as Map<String, dynamic>),
+            );
+          } catch (e) {
+            print(
+              '[UserProvider] Error parsing individual friend item from /friends: $item, error: $e',
+            );
+          }
+        }
+        _friends = successfullyParsedFriends;
+        if (data.isNotEmpty && _friends.isEmpty) {
+          print(
+            '[UserProvider] Warning: API /friends returned friend data, but all items failed to parse.',
+          );
+        }
+      } else {
+        print(
+          '[UserProvider] Failed to fetch friends: ${response.statusCode} ${response.body}',
+        );
+        _friends = [];
+      }
     } catch (e) {
+      print('[UserProvider] Error fetching friends (overall try-catch): $e');
+      _friends = [];
+    } finally {
       _isLoading = false;
+      print(
+        '[UserProvider] fetchFriends completed. Parsed ${_friends.length} friends.',
+      );
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Tìm kiếm người dùng theo ID
-  Future<UserModel?> searchUserById(String userId) async {
-    if (userId.isEmpty) {
-      return null;
+  Future<void> fetchFriendRequests() async {
+    print('[UserProvider] fetchFriendRequests called.');
+    if (_accessToken == null || _currentUser == null) {
+      print(
+        '[UserProvider] fetchFriendRequests: _accessToken or _currentUser is null, returning.',
+      );
+      _incomingFriendRequests = [];
+      _outgoingFriendRequests = [];
+      _acceptedFriendships = []; // Clear accepted friendships
+      notifyListeners();
+      return;
     }
-    
     _isLoading = true;
     notifyListeners();
-    
+
+    List<FriendRequest> successfullyParsedRequests =
+        []; // Temporary list for successfully parsed items
+
     try {
-      // Mô phỏng tìm kiếm trên server
-      await Future.delayed(const Duration(milliseconds: 800));
-      
-      // Kiểm tra xem người dùng đã có trong danh sách hay chưa
-      final existingUser = _users.where((user) => user.id == userId).toList();
-      if (existingUser.isNotEmpty) {
-        _isLoading = false;
-        notifyListeners();
-        return existingUser.first;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/FriendShip/requests'),
+        headers: _headers,
+      );
+      print(
+        '[UserProvider] Fetch Friend Requests Status Code: ${response.statusCode}',
+      );
+      print(
+        '[UserProvider] Fetch Friend Requests Response Body: ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+        for (var item in data) {
+          try {
+            successfullyParsedRequests.add(
+              FriendRequest.fromJson(item as Map<String, dynamic>),
+            );
+          } catch (e) {
+            print(
+              '[UserProvider] Error parsing individual friend request item: $item, error: $e',
+            );
+            // Skip this item and continue with the next
+          }
+        }
+
+        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
+        _incomingFriendRequests =
+            successfullyParsedRequests
+                .where(
+                  (FriendRequest req) =>
+                      req.receiverId == _currentUser!.id &&
+                      req.status == 'Pending',
+                )
+                .toList();
+        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
+        _outgoingFriendRequests =
+            successfullyParsedRequests
+                .where(
+                  (FriendRequest req) =>
+                      req.requesterId == _currentUser!.id &&
+                      req.status == 'Pending',
+                )
+                .toList();
+        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
+        _acceptedFriendships =
+            successfullyParsedRequests
+                .where(
+                  (FriendRequest req) =>
+                      req.status == 'Accepted' &&
+                      (req.requesterId == _currentUser!.id ||
+                          req.receiverId == _currentUser!.id),
+                )
+                .toList();
+        print(
+          '[UserProvider] Populated _incomingFriendRequests: ${_incomingFriendRequests.length} requests.',
+        );
+        print(
+          '[UserProvider] Populated _outgoingFriendRequests: ${_outgoingFriendRequests.length} requests.',
+        );
+        print(
+          '[UserProvider] Populated _acceptedFriendships: ${_acceptedFriendships.length} friendships.',
+        );
+      } else {
+        print(
+          '[UserProvider] Failed to fetch friend requests: ${response.statusCode} ${response.body}',
+        );
+        _incomingFriendRequests = [];
+        _outgoingFriendRequests = [];
+        _acceptedFriendships = [];
       }
-      
-      // Kiểm tra định dạng ID hợp lệ (giả sử ID bắt đầu bằng "user")
-      if (!userId.startsWith('user')) {
-        _isLoading = false;
-        notifyListeners();
+    } catch (e) {
+      print(
+        '[UserProvider] Error fetching friend requests (overall try-catch): $e',
+      );
+      _incomingFriendRequests = [];
+      _outgoingFriendRequests = [];
+      _acceptedFriendships = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<UserModel?> fetchUserByIdFromApi(String userId) async {
+    if (_accessToken == null) return null;
+    // This method might be redundant if searchUsersByQuery is flexible enough
+    // For now, it assumes searching by ID via the general search endpoint
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/FriendShip/search?query=$userId'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+        if (data.isNotEmpty) {
+          // Assuming the API returns the exact match first or only for an ID query
+          return UserModel.fromJson(data.first as Map<String, dynamic>);
+        }
         return null;
       }
-      
-      // Tạo người dùng mới nếu ID hợp lệ
-      final newUser = UserModel(
-        id: userId,
-        name: "Người dùng ${Random().nextInt(1000)}",
-        email: "user$userId@email.com",
-        avatarUrl: "assets/avatar.jpg",
-        daysUsed: Random().nextInt(60) + 1,
-        achievements: Random().nextInt(30) + 1,
-        efficiency: (60 + Random().nextInt(35)).toDouble(),
-        friendIds: const [],
-      );
-      
-      // Thêm người dùng mới vào danh sách
-      _users.add(newUser);
-      
-      _isLoading = false;
-      notifyListeners();
-      return newUser;
+      return null;
     } catch (e) {
-      _isLoading = false;
-      notifyListeners();
+      print('Error fetching user by ID from API: $e');
       return null;
     }
   }
 
-  // Gửi yêu cầu kết bạn
-  Future<bool> sendFriendRequest(String userId) async {
-    if (_currentUser == null) return false;
-    
-    _isLoading = true;
-    notifyListeners();
-    
-    try {
-      // Mô phỏng gửi yêu cầu trên server
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Kiểm tra xem đã gửi lời mời chưa
-      bool alreadySent = _friendRequests.any(
-        (request) => 
-          request.senderId == _currentUser!.id && 
-          request.receiverId == userId &&
-          request.status == 'pending'
-      );
-      
-      // Nếu đã kết bạn hoặc đã gửi lời mời, không làm gì
-      if (_currentUser!.friendIds.contains(userId) || alreadySent) {
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-      
-      // Tạo yêu cầu kết bạn mới
-      final newRequest = FriendRequest(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), 
-        senderId: _currentUser!.id, 
-        receiverId: userId, 
-        createdAt: DateTime.now(), 
-        status: 'pending'
-      );
-      
-      _friendRequests.add(newRequest);
-      _isLoading = false;
+  Future<List<UserModel>> searchUsersByQuery(String query) async {
+    print(
+      '[UserProvider] searchUsersByQuery called with query: "$query"',
+    ); // Added log
+
+    if (_accessToken == null) {
+      print(
+        '[UserProvider] searchUsersByQuery: _accessToken is null. Aborting search.',
+      ); // Added log
+      _searchedUsers = [];
       notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      return [];
     }
+    if (query.isEmpty) {
+      print(
+        '[UserProvider] searchUsersByQuery: query is empty. Clearing results.',
+      ); // Added log
+      _searchedUsers = [];
+      notifyListeners();
+      return [];
+    }
+
+    _isLoading = true;
+    _searchedUsers = [];
+    notifyListeners();
+    print(
+      '[UserProvider] searchUsersByQuery: Cleared _searchedUsers and notified listeners. _isLoading is true.',
+    ); // Added log
+
+    try {
+      final searchUrl = Uri.parse(
+        '$_baseUrl/api/FriendShip/search?query=$query',
+      );
+      print(
+        '[UserProvider] searchUsersByQuery: Attempting to call API: $searchUrl',
+      ); // Added log
+
+      final response = await http.get(searchUrl, headers: _headers);
+      print('[UserProvider] Search Users Status Code: ${response.statusCode}');
+      print('[UserProvider] Search Users Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+        print(
+          '[UserProvider] searchUsersByQuery: Successfully decoded response. Data length: ${data.length}',
+        ); // Added log
+
+        List<UserModel> parsedUsers = [];
+        for (var jsonItem in data) {
+          try {
+            parsedUsers.add(
+              UserModel.fromJson(jsonItem as Map<String, dynamic>),
+            );
+          } catch (e) {
+            print(
+              '[UserProvider] searchUsersByQuery: Error parsing user item: $jsonItem. Error: $e',
+            ); // Added log for individual parsing error
+          }
+        }
+        _searchedUsers = parsedUsers;
+        print(
+          '[UserProvider] searchUsersByQuery: Parsed ${_searchedUsers.length} users.',
+        ); // Added log
+        if (data.isNotEmpty && _searchedUsers.isEmpty) {
+          print(
+            '[UserProvider] searchUsersByQuery: Warning - API returned data but no users were successfully parsed.',
+          );
+        }
+      } else {
+        print(
+          '[UserProvider] Failed to search users: ${response.statusCode} ${response.body}',
+        );
+        _searchedUsers = [];
+      }
+    } catch (e, stackTrace) {
+      // Added stackTrace
+      print('[UserProvider] Error searching users (in catch block): $e');
+      print('[UserProvider] StackTrace: $stackTrace'); // Added stacktrace log
+      _searchedUsers = [];
+    } finally {
+      _isLoading = false;
+      print(
+        '[UserProvider] searchUsersByQuery: Completed. _isLoading is false. Searched users count: ${_searchedUsers.length}',
+      ); // Added log
+      notifyListeners();
+    }
+    return _searchedUsers;
   }
 
-  // Chấp nhận lời mời kết bạn
-  Future<bool> acceptFriendRequest(String requestId) async {
-    if (_currentUser == null) return false;
-    
+  Future<bool> sendFriendRequest(String receiverUserId) async {
+    if (_accessToken == null || _currentUser == null) return false;
     _isLoading = true;
     notifyListeners();
-    
+    bool success = false;
     try {
-      // Mô phỏng xử lý trên server
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Tìm yêu cầu kết bạn
-      int index = _friendRequests.indexWhere((req) => req.id == requestId);
-      if (index == -1) {
-        _isLoading = false;
-        notifyListeners();
-        return false;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/FriendShip/send'),
+        headers: _headers,
+        body: jsonEncode(<String, String>{
+          // 'requesterId': _currentUser!.id, // Requester ID is usually inferred from the auth token
+          'receiverId': receiverUserId,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // final newRequest = FriendRequest.fromJson(jsonDecode(response.body));
+        // _outgoingFriendRequests.add(newRequest); // Handled by refetch
+        await fetchFriendRequests(); // Refresh requests
+        success = true;
+      } else {
+        print(
+          'Failed to send friend request: ${response.statusCode} ${response.body}',
+        );
       }
-      
-      // Cập nhật trạng thái yêu cầu
-      final request = _friendRequests[index];
-      _friendRequests[index] = request.copyWith(status: 'accepted');
-      
-      // Cập nhật danh sách bạn bè của người gửi và người nhận
-      int senderIndex = _users.indexWhere((user) => user.id == request.senderId);
-      int receiverIndex = _users.indexWhere((user) => user.id == request.receiverId);
-      
-      if (senderIndex != -1 && receiverIndex != -1) {
-        // Thêm ID người nhận vào danh sách bạn bè của người gửi
-        final sender = _users[senderIndex];
-        List<String> senderFriends = List.from(sender.friendIds);
-        if (!senderFriends.contains(request.receiverId)) {
-          senderFriends.add(request.receiverId);
-        }
-        _users[senderIndex] = sender.copyWith(friendIds: senderFriends);
-        
-        // Thêm ID người gửi vào danh sách bạn bè của người nhận
-        final receiver = _users[receiverIndex];
-        List<String> receiverFriends = List.from(receiver.friendIds);
-        if (!receiverFriends.contains(request.senderId)) {
-          receiverFriends.add(request.senderId);
-        }
-        _users[receiverIndex] = receiver.copyWith(friendIds: receiverFriends);
-        
-        // Cập nhật currentUser nếu là một trong hai bên
-        if (_currentUser!.id == sender.id) {
-          _currentUser = _users[senderIndex];
-        } else if (_currentUser!.id == receiver.id) {
-          _currentUser = _users[receiverIndex];
-        }
-      }
-      
-      _isLoading = false;
-      notifyListeners();
-      return true;
     } catch (e) {
+      print('Error sending friend request: $e');
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
     }
+    return success;
   }
 
-  // Từ chối lời mời kết bạn
-  Future<bool> rejectFriendRequest(String requestId) async {
-    if (_currentUser == null) return false;
-    
+  Future<bool> acceptFriendRequest(String friendshipId) async {
+    if (_accessToken == null) return false;
     _isLoading = true;
     notifyListeners();
-    
+    bool success = false;
     try {
-      // Mô phỏng xử lý trên server
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Tìm yêu cầu kết bạn
-      int index = _friendRequests.indexWhere((req) => req.id == requestId);
-      if (index == -1) {
-        _isLoading = false;
-        notifyListeners();
-        return false;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/FriendShip/respond/accept/$friendshipId'),
+        headers: _headers,
+        // body: jsonEncode({}), // Empty body if API expects it or no body
+      );
+      if (response.statusCode == 200) {
+        await fetchFriends();
+        await fetchFriendRequests();
+        success = true;
+      } else {
+        print(
+          'Failed to accept friend request: ${response.statusCode} ${response.body}',
+        );
       }
-      
-      // Cập nhật trạng thái yêu cầu
-      final request = _friendRequests[index];
-      _friendRequests[index] = request.copyWith(status: 'rejected');
-      
-      _isLoading = false;
-      notifyListeners();
-      return true;
     } catch (e) {
+      print('Error accepting friend request: $e');
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
     }
+    return success;
   }
-  
-  // Hủy kết bạn
-  Future<bool> removeFriend(String friendId) async {
-    if (_currentUser == null) return false;
-    
+
+  Future<bool> rejectFriendRequest(String friendshipId) async {
+    if (_accessToken == null) return false;
     _isLoading = true;
     notifyListeners();
-    
+    bool success = false;
     try {
-      // Mô phỏng xử lý trên server
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Tìm vị trí của người dùng hiện tại và bạn bè
-      int currentUserIndex = _users.indexWhere((user) => user.id == _currentUser!.id);
-      int friendIndex = _users.indexWhere((user) => user.id == friendId);
-      
-      if (currentUserIndex != -1 && friendIndex != -1) {
-        // Cập nhật danh sách bạn bè của người dùng hiện tại
-        final user = _users[currentUserIndex];
-        List<String> userFriends = List.from(user.friendIds);
-        userFriends.remove(friendId);
-        _users[currentUserIndex] = user.copyWith(friendIds: userFriends);
-        
-        // Cập nhật danh sách bạn bè của bạn bè
-        final friend = _users[friendIndex];
-        List<String> friendFriends = List.from(friend.friendIds);
-        friendFriends.remove(_currentUser!.id);
-        _users[friendIndex] = friend.copyWith(friendIds: friendFriends);
-        
-        // Cập nhật currentUser
-        _currentUser = _users[currentUserIndex];
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/FriendShip/respond/deny/$friendshipId'),
+        headers: _headers,
+        // body: jsonEncode({}), // Empty body if API expects it or no body
+      );
+      if (response.statusCode == 200) {
+        await fetchFriendRequests(); // Refresh requests
+        success = true;
+      } else {
+        print(
+          'Failed to reject friend request: ${response.statusCode} ${response.body}',
+        );
       }
-      
-      _isLoading = false;
-      notifyListeners();
-      return true;
     } catch (e) {
+      print('Error rejecting friend request: $e');
+    } finally {
       _isLoading = false;
       notifyListeners();
+    }
+    return success;
+  }
+
+  Future<bool> removeFriend(String userIdToRemove) async {
+    if (_accessToken == null || _currentUser == null) {
+      print(
+        "[UserProvider] Access token or current user is null. Cannot remove friend.",
+      );
       return false;
     }
+
+    FriendRequest? friendshipToRemove;
+    try {
+      // Find the accepted friendship involving the current user and the user to remove
+      friendshipToRemove = _acceptedFriendships.firstWhere(
+        (req) =>
+            (req.requesterId == _currentUser!.id &&
+                req.receiverId == userIdToRemove) ||
+            (req.receiverId == _currentUser!.id &&
+                req.requesterId == userIdToRemove),
+      );
+    } catch (e) {
+      // This catch block will be hit if no element satisfies the condition.
+      print(
+        '[UserProvider] No accepted friendship found with user $userIdToRemove in local _acceptedFriendships list. Cannot remove.',
+      );
+      print(
+        '[UserProvider] Current _acceptedFriendships count: ${_acceptedFriendships.length}. Contents:',
+      );
+      for (var fr in _acceptedFriendships) {
+        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
+        // PLEASE REPLACE 'friendshipId' WITH THE CORRECT FIELD NAME FOR THE ID IN YOUR FriendRequestModel
+        print(
+          '[UserProvider] Accepted Friendship: ID=${fr.friendshipId}, Requester=${fr.requesterId}, Receiver=${fr.receiverId}, Status=${fr.status}',
+        );
+      }
+      return false;
+    }
+
+    // PLEASE REPLACE 'friendshipId' WITH THE CORRECT FIELD NAME FOR THE ID IN YOUR FriendRequestModel
+    final String actualFriendshipId = friendshipToRemove.friendshipId;
+
+    print(
+      '[UserProvider] Attempting to remove friend $userIdToRemove with Friendship ID: $actualFriendshipId',
+    );
+
+    _isLoading = true;
+    notifyListeners();
+    bool success = false;
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/api/FriendShip/remove/$actualFriendshipId'),
+        headers: _headers,
+      );
+      print(
+        '[UserProvider] Remove Friend API Status Code: ${response.statusCode}',
+      );
+      print('[UserProvider] Remove Friend API Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print(
+          '[UserProvider] Friend with user ID $userIdToRemove (Friendship ID: $actualFriendshipId) removed successfully via API.',
+        );
+        await fetchFriends();
+        await fetchFriendRequests();
+
+        _searchedUsers.removeWhere((user) => user.id == userIdToRemove);
+        success = true;
+      } else {
+        print(
+          '[UserProvider] Failed to remove friend from API: ${response.statusCode} ${response.body}',
+        );
+      }
+    } catch (e) {
+      print('[UserProvider] Error removing friend via API: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+    return success;
+  }
+
+  // Utility methods
+  bool isFriend(String userId) {
+    return _friends.any((friend) => friend.id == userId);
+  }
+
+  bool hasSentFriendRequestTo(String userId) {
+    return _outgoingFriendRequests.any(
+      (request) => request.receiverId == userId && request.status == 'Pending',
+    );
+  }
+
+  bool hasReceivedFriendRequestFrom(String userId) {
+    return _incomingFriendRequests.any(
+      (request) => request.requesterId == userId && request.status == 'Pending',
+    );
   }
 }
+
+// Cần đảm bảo UserModel và FriendRequest có factory constructor fromJson
+// Ví dụ cho FriendRequest (điều chỉnh cho phù hợp với API response của bạn):
+/*
+class FriendRequest {
+  final String id; // Đây có thể là friendshipId
+  final String senderId;
+  final String receiverId;
+  final DateTime createdAt;
+  String status; // 'pending', 'accepted', 'rejected'
+
+  FriendRequest({
+    required this.id,
+    required this.senderId,
+    required this.receiverId,
+    required this.createdAt,
+    required this.status,
+  });
+
+  FriendRequest copyWith({ ... }) { ... } // Giữ lại nếu bạn có
+
+  factory FriendRequest.fromJson(Map<String, dynamic> json) {
+    return FriendRequest(
+      id: json['friendshipId'] ?? json['id'], // Kiểm tra key API trả về
+      senderId: json['requesterId'] ?? json['senderId'],
+      receiverId: json['receiverId'],
+      createdAt: DateTime.parse(json['requestedAt'] ?? json['createdAt']),
+      status: json['relationshipStatus'] ?? json['status'],
+    );
+  }
+}
+*/

@@ -179,7 +179,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   index: 3,
                 ),
                 _buildNavItem(
-                  label: 'Kết bạn',
+                  label: 'Bạn bè',
                   icon: Icons.people_outline,
                   activeIcon: Icons.people,
                   index: 4,

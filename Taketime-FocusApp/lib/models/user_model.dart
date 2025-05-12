@@ -1,121 +1,106 @@
 class UserModel {
   final String id;
-  final String name;
+  final String username;
   final String email;
-  final String avatarUrl;
-  final int daysUsed;
-  final int achievements;
-  final double efficiency;
-  final List<String> friendIds;
+  String? avatarUrl;
+  String? friendshipId; // Added for storing friendship ID when user is a friend
+  String? friendshipStatus; // Added for storing friendship status from search results
 
   UserModel({
     required this.id,
-    required this.name,
+    required this.username,
     required this.email,
-    required this.avatarUrl,
-    required this.daysUsed,
-    required this.achievements,
-    required this.efficiency,
-    this.friendIds = const [],
+    this.avatarUrl,
+    this.friendshipId,
+    this.friendshipStatus, // Added
   });
 
   UserModel copyWith({
     String? id,
-    String? name,
+    String? username,
     String? email,
     String? avatarUrl,
-    int? daysUsed,
-    int? achievements,
-    double? efficiency,
-    List<String>? friendIds,
+    String? friendshipId,
+    String? friendshipStatus, // Added
   }) {
     return UserModel(
       id: id ?? this.id,
-      name: name ?? this.name,
+      username: username ?? this.username,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
-      daysUsed: daysUsed ?? this.daysUsed,
-      achievements: achievements ?? this.achievements,
-      efficiency: efficiency ?? this.efficiency,
-      friendIds: friendIds ?? this.friendIds,
+      friendshipId: friendshipId ?? this.friendshipId,
+      friendshipStatus: friendshipStatus ?? this.friendshipStatus, // Added
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-      'avatarUrl': avatarUrl,
-      'daysUsed': daysUsed,
-      'achievements': achievements,
-      'efficiency': efficiency,
-      'friendIds': friendIds,
-    };
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    // Helper to safely get a string value for a list of possible keys
+    String? getString(List<String> keys) {
+      for (String key in keys) {
+        if (json.containsKey(key) && json[key] != null && json[key] is String) {
+          return json[key] as String;
+        }
+      }
+      return null;
+    }
+
+    final String parsedId = getString(['user_id', 'id', 'userId']) ?? ''; // Fallback to empty string if all null, but ID should be present
+    final String parsedUsername = getString(['full_name', 'username', 'name']) ?? ''; // Fallback
+    final String parsedEmail = getString(['email']) ?? ''; // Fallback
+    final String? parsedAvatarUrl = getString(['avatar_url', 'avatarUrl', 'picture']);
+    final String? parsedFriendshipId = getString(['friendship_id', 'friendshipId']);
+    final String? parsedFriendshipStatus = getString(['friendshipStatus', 'friendship_status']); // Added
+
+    // ignore: avoid_print
+    print("[UserModel.fromJson] Parsing JSON: $json");
+    // ignore: avoid_print
+    print("[UserModel.fromJson] -> Extracted id: '$parsedId' (from user_id, id, userId)");
+    // ignore: avoid_print
+    print("[UserModel.fromJson] -> Extracted username: '$parsedUsername' (from full_name, username, name)");
+    // ignore: avoid_print
+    print("[UserModel.fromJson] -> Extracted email: '$parsedEmail'");
+    // ignore: avoid_print
+    print("[UserModel.fromJson] -> Extracted avatarUrl: '$parsedAvatarUrl'");
+    // ignore: avoid_print
+    print("[UserModel.fromJson] -> Extracted friendshipId: '$parsedFriendshipId'");
+    // ignore: avoid_print
+    print("[UserModel.fromJson] -> Extracted friendshipStatus: '$parsedFriendshipStatus'"); // Added
+
+    if (parsedId.isEmpty) {
+      // ignore: avoid_print
+      print("[UserModel.fromJson] CRITICAL ERROR: User ID is empty after parsing. Original JSON: $json");
+      // Depending on how strict you want to be, you could throw an exception
+      // throw Exception("User ID is missing or null in UserModel.fromJson");
+    }
+    if (parsedUsername.isEmpty) {
+      // ignore: avoid_print
+      print("[UserModel.fromJson] WARNING: Username is empty after parsing. Original JSON: $json");
+    }
+    if (parsedEmail.isEmpty) {
+      // ignore: avoid_print
+      print("[UserModel.fromJson] WARNING: Email is empty after parsing. Original JSON: $json");
+    }
+
     return UserModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      avatarUrl: json['avatarUrl'] as String,
-      daysUsed: json['daysUsed'] as int,
-      achievements: json['achievements'] as int,
-      efficiency: json['efficiency'] as double,
-      friendIds: (json['friendIds'] as List?)?.map((e) => e as String).toList() ?? [],
-    );
-  }
-}
-
-class FriendRequest {
-  final String id;
-  final String senderId;
-  final String receiverId;
-  final DateTime createdAt;
-  final String status; // pending, accepted, rejected
-
-  FriendRequest({
-    required this.id,
-    required this.senderId,
-    required this.receiverId,
-    required this.createdAt,
-    required this.status,
-  });
-
-  FriendRequest copyWith({
-    String? id,
-    String? senderId,
-    String? receiverId,
-    DateTime? createdAt,
-    String? status,
-  }) {
-    return FriendRequest(
-      id: id ?? this.id,
-      senderId: senderId ?? this.senderId,
-      receiverId: receiverId ?? this.receiverId,
-      createdAt: createdAt ?? this.createdAt,
-      status: status ?? this.status,
+      id: parsedId, // UserModel.id is non-nullable
+      username: parsedUsername, // UserModel.username is non-nullable
+      email: parsedEmail, // UserModel.email is non-nullable
+      avatarUrl: parsedAvatarUrl,
+      friendshipId: parsedFriendshipId,
+      friendshipStatus: parsedFriendshipStatus, // Added
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'senderId': senderId,
-      'receiverId': receiverId,
-      'createdAt': createdAt.toIso8601String(),
-      'status': status,
+      // It's good practice to decide on one casing for sending data if the backend has a preference
+      // For now, using a common one, but align with backend if needed for POST/PUT.
+      'fullName': username, 
+      'email': email,
+      'avatar_url': avatarUrl,
+      'friendshipId': friendshipId,
+      'friendshipStatus': friendshipStatus, // Added (though primarily for client-side use from search)
     };
-  }
-
-  factory FriendRequest.fromJson(Map<String, dynamic> json) {
-    return FriendRequest(
-      id: json['id'] as String,
-      senderId: json['senderId'] as String,
-      receiverId: json['receiverId'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      status: json['status'] as String,
-    );
   }
 }
