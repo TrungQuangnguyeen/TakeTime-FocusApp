@@ -16,7 +16,8 @@ class FriendScreen extends StatefulWidget {
   State<FriendScreen> createState() => _FriendScreenState();
 }
 
-class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderStateMixin {
+class _FriendScreenState extends State<FriendScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false; // To track if a search has been performed
@@ -72,7 +73,9 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FriendRequestScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const FriendRequestScreen(),
+                ),
               );
             },
             tooltip: 'Lời mời kết bạn',
@@ -83,10 +86,7 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
           labelColor: primaryColor,
           unselectedLabelColor: isDark ? Colors.white70 : Colors.black54,
           indicatorColor: primaryColor,
-          tabs: const [
-            Tab(text: 'Bạn bè'),
-            Tab(text: 'Tìm kiếm'),
-          ],
+          tabs: const [Tab(text: 'Bạn bè'), Tab(text: 'Tìm kiếm')],
         ),
       ),
       body: TabBarView(
@@ -94,7 +94,7 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
         children: [
           // Tab danh sách bạn bè
           _buildFriendsTab(userProvider, theme),
-          
+
           // Tab tìm kiếm
           _buildSearchTab(userProvider, theme),
         ],
@@ -121,7 +121,8 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
 
     final displayFriends = userProvider.friends; // Use actual friends list
 
-    if (userProvider.isLoading && displayFriends.isEmpty) { // Show loader only if displayFriends list is empty and loading
+    if (userProvider.isLoading && displayFriends.isEmpty) {
+      // Show loader only if displayFriends list is empty and loading
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -157,7 +158,10 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
               icon: const Icon(Icons.search),
               label: const Text('Tìm kiếm bạn bè'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -170,7 +174,12 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
       itemCount: displayFriends.length,
       itemBuilder: (context, index) {
         final friend = displayFriends[index];
-        return _buildFriendCard(friend, theme, userProvider, isSearchResult: false);
+        return _buildFriendCard(
+          friend,
+          theme,
+          userProvider,
+          isSearchResult: false,
+        );
       },
     );
   }
@@ -182,15 +191,17 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Tìm bạn bè bằng tên hoặc User ID',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            'Tìm bạn bè bằng tên',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Nhập tên hoặc User ID',
+              hintText: 'Nhập tên người dùng',
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -198,18 +209,19 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
               ),
               filled: true,
               fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _performSearch(userProvider); // Clear results
-                        setState(() {
-                           _isSearching = false; // Reset search state
-                        });
-                      },
-                    )
-                  : null,
+              suffixIcon:
+                  _searchController.text.isNotEmpty
+                      ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _performSearch(userProvider); // Clear results
+                          setState(() {
+                            _isSearching = false; // Reset search state
+                          });
+                        },
+                      )
+                      : null,
             ),
             onChanged: (value) {
               // Update search query state for enabling button or live search (optional)
@@ -225,9 +237,10 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
           ElevatedButton.icon(
             icon: const Icon(Icons.search),
             label: const Text('Tìm kiếm'),
-            onPressed: _searchController.text.trim().isNotEmpty
-                ? () => _performSearch(userProvider)
-                : null,
+            onPressed:
+                _searchController.text.trim().isNotEmpty
+                    ? () => _performSearch(userProvider)
+                    : null,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               textStyle: theme.textTheme.titleMedium,
@@ -237,16 +250,15 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
             ),
           ),
           const SizedBox(height: 24),
-          Expanded(
-            child: _buildSearchResults(userProvider, theme),
-          ),
+          Expanded(child: _buildSearchResults(userProvider, theme)),
         ],
       ),
     );
   }
 
   Widget _buildSearchResults(UserProvider userProvider, ThemeData theme) {
-    if (!_isSearching) { // If no search has been performed yet
+    if (!_isSearching) {
+      // If no search has been performed yet
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -273,7 +285,8 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
 
     final foundUsers = userProvider.searchedUsers;
 
-    if (foundUsers.isEmpty && _isSearching) { // If search was done but no results
+    if (foundUsers.isEmpty && _isSearching) {
+      // If search was done but no results
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -301,49 +314,53 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
     }
 
     // Filter out the current user from search results
-    final displayUsers = foundUsers.where((user) => user.id != userProvider.currentUser?.id).toList();
+    final displayUsers =
+        foundUsers
+            .where((user) => user.id != userProvider.currentUser?.id)
+            .toList();
 
     if (displayUsers.isEmpty && foundUsers.isNotEmpty) {
-        // This case means the only user found was the current user.
-        return Center(
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                    Icon(
-                        Icons.no_accounts_outlined,
-                        size: 80,
-                        color: theme.colorScheme.primary.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                        'Bạn không thể tự kết bạn với chính mình.',
-                        style: theme.textTheme.titleMedium,
-                        textAlign: TextAlign.center,
-                    ),
-                ],
+      // This case means the only user found was the current user.
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.no_accounts_outlined,
+              size: 80,
+              color: theme.colorScheme.primary.withOpacity(0.5),
             ),
-        );
+            const SizedBox(height: 16),
+            Text(
+              'Bạn không thể tự kết bạn với chính mình.',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
     }
-    
-    if (displayUsers.isEmpty) { 
-        return Center( // Should be covered by the above cases, but as a fallback
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                    Icon(
-                        Icons.sentiment_dissatisfied_outlined,
-                        size: 80,
-                        color: theme.colorScheme.primary.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                        'Không tìm thấy người dùng nào khác.',
-                        style: theme.textTheme.titleMedium,
-                        textAlign: TextAlign.center,
-                    ),
-                ],
+
+    if (displayUsers.isEmpty) {
+      return Center(
+        // Should be covered by the above cases, but as a fallback
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sentiment_dissatisfied_outlined,
+              size: 80,
+              color: theme.colorScheme.primary.withOpacity(0.5),
             ),
-        );
+            const SizedBox(height: 16),
+            Text(
+              'Không tìm thấy người dùng nào khác.',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
@@ -351,12 +368,22 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
       itemBuilder: (context, index) {
         // For search results, we always show AddFriendButton, RequestSentButton, or ViewProfileButton (if already friend)
         // The _buildActionButton will handle this logic.
-        return _buildFriendCard(displayUsers[index], theme, userProvider, isSearchResult: true);
+        return _buildFriendCard(
+          displayUsers[index],
+          theme,
+          userProvider,
+          isSearchResult: true,
+        );
       },
     );
   }
 
-  Widget _buildFriendCard(UserModel user, ThemeData theme, UserProvider userProvider, {bool isSearchResult = false}) {
+  Widget _buildFriendCard(
+    UserModel user,
+    ThemeData theme,
+    UserProvider userProvider, {
+    bool isSearchResult = false,
+  }) {
     // Default avatar if URL is null or empty
     Widget avatarWidget;
     if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) {
@@ -396,22 +423,32 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
+        ),
         leading: avatarWidget,
         title: Text(
-          user.username, 
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          user.username,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         subtitle: Text(
-          user.email, 
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          user.email,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         trailing: _buildActionButton(user, userProvider, theme, isSearchResult),
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => FriendDetailScreen(userId: user.id), // Corrected: Pass userId
+              builder:
+                  (context) => FriendDetailScreen(
+                    userId: user.id,
+                  ), // Corrected: Pass userId
             ),
           );
         },
@@ -419,7 +456,12 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildActionButton(UserModel user, UserProvider userProvider, ThemeData theme, bool isSearchResult) {
+  Widget _buildActionButton(
+    UserModel user,
+    UserProvider userProvider,
+    ThemeData theme,
+    bool isSearchResult,
+  ) {
     final bool isCurrentUser = user.id == userProvider.currentUser?.id;
 
     if (isCurrentUser) {
@@ -434,7 +476,8 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
       return RemoveFriendButton(user: user);
     }
     // Scenario 2: Displaying in "Search Results" tab
-    else { // isSearchResult is true
+    else {
+      // isSearchResult is true
       // Prioritize friendshipStatus from the search result itself
       if (user.friendshipStatus?.toLowerCase() == 'accepted') {
         return ViewProfileButton(userId: user.id);
@@ -454,7 +497,9 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
             // Navigate to the friend request screen where they can accept/deny
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const FriendRequestScreen()),
+              MaterialPageRoute(
+                builder: (context) => const FriendRequestScreen(),
+              ),
             );
           },
           style: ElevatedButton.styleFrom(
