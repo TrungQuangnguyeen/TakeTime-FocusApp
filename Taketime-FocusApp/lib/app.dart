@@ -42,30 +42,28 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _initializeAuthStateListener() {
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
-      data,
-    ) {
-      final Session? session = data.session;
-      if (mounted) {
-        setState(() {
-          _isLoggedIn = session != null;
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
+        .listen((data) {
+          final Session? session = data.session;
+          if (mounted) {
+            setState(() {
+              _isLoggedIn = session != null;
+            });
+            if (session != null) {
+              // Truyền accessToken thuần, không làm sạch, không thêm Bearer
+              String accessToken = session.accessToken;
+              Provider.of<UserProvider>(
+                context,
+                listen: false,
+              ).setAuthToken(accessToken);
+            } else {
+              Provider.of<UserProvider>(
+                context,
+                listen: false,
+              ).setAuthToken(null);
+            }
+          }
         });
-        if (session != null) {
-          // Lấy access token gốc từ session và truyền nguyên vẹn vào UserProvider
-          final accessToken = session.accessToken;
-          print(
-            '[DEBUG][MyApp] Access token lấy từ session Supabase (KHÔNG CHE, KHÔNG LÀM SẠCH):',
-          );
-          print(accessToken);
-          Provider.of<UserProvider>(
-            context,
-            listen: false,
-          ).setAuthToken(accessToken);
-        } else {
-          Provider.of<UserProvider>(context, listen: false).setAuthToken(null);
-        }
-      }
-    });
   }
 
   @override

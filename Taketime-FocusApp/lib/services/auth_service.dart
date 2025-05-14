@@ -169,6 +169,7 @@ class AuthService {
   // Thêm hàm này để lấy access token Supabase
   Future<String?> getAccessToken() async {
     final session = Supabase.instance.client.auth.currentSession;
-    return session?.accessToken;
+    final token = session?.accessToken;
+    return token; // Trả về token gốc, không làm sạch
   }
 }

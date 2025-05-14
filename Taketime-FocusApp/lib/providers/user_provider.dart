@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import '../models/friend_request_model.dart'; // Correct import for FriendRequest
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class UserProvider with ChangeNotifier {
   UserModel? _currentUser;
@@ -15,9 +16,8 @@ class UserProvider with ChangeNotifier {
   String? _accessToken;
   List<UserModel> _searchedUsers = [];
 
-  //final String _baseUrl = "http://localhost:5220";
   final String _baseUrl =
-      "http://10.0.2.2:5220"; // Replace with your actual base URL
+      kIsWeb ? "http://localhost:5220" : "http://10.0.2.2:5220";
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -31,7 +31,7 @@ class UserProvider with ChangeNotifier {
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json; charset=UTF-8',
-    if (_accessToken != null) 'Authorization': _accessToken!, // KHÔNG có Bearer
+    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
 
   void setAuthToken(String? token) {
@@ -227,7 +227,7 @@ class UserProvider with ChangeNotifier {
             successfullyParsedRequests
                 .where(
                   (FriendRequest req) =>
-                      req.status == 'Accepted' &&
+                      req.status == 'accepted' &&
                       (req.requesterId == _currentUser!.id ||
                           req.receiverId == _currentUser!.id),
                 )
@@ -316,8 +316,11 @@ class UserProvider with ChangeNotifier {
     ); // Added log
 
     try {
+      final encodedQuery = Uri.encodeQueryComponent(
+        query,
+      ); // Mã hóa query string
       final searchUrl = Uri.parse(
-        '$_baseUrl/api/FriendShip/search?query=$query',
+        '$_baseUrl/api/FriendShip/search?query=$encodedQuery',
       );
       print(
         '[UserProvider] searchUsersByQuery: Attempting to call API: $searchUrl',
@@ -330,7 +333,7 @@ class UserProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
         print(
-          '[UserProvider] searchUsersByQuery: Successfully decoded response. Data length: ${data.length}',
+          '[UserProvider] searchUsersByQuery: Successfully decoded response. Data length: [32m${data.length}[0m',
         ); // Added log
 
         List<UserModel> parsedUsers = [];
