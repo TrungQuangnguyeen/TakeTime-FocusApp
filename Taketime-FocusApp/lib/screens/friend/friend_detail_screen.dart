@@ -14,104 +14,96 @@ class FriendDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final userProvider = Provider.of<UserProvider>(context);
-    final user = userProvider.getUserById(userId);
-    
-    if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Chi tiết người dùng'),
-          centerTitle: true,
-        ),
-        body: const Center(
-          child: Text('Không tìm thấy thông tin người dùng'),
-        ),
-      );
-    }
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chi tiết người dùng'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 24),
-            CircleAvatar(
-              radius: 60,
-              backgroundImage: AssetImage(user.avatarUrl),
+    final userProvider = Provider.of<UserProvider>(context, listen: false); // listen:false if not reacting to updates here
+
+    // Use a FutureBuilder to fetch the user details asynchronously
+    return FutureBuilder<UserModel?>(
+      future: userProvider.fetchUserByIdFromApi(userId), // Use the async method
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Chi tiết người dùng'),
+              centerTitle: true,
             ),
-            const SizedBox(height: 16),
-            Text(
-              user.name,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Chi tiết người dùng'),
+              centerTitle: true,
             ),
-            const SizedBox(height: 4),
-            Text(
-              'ID: ${user.id}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
+            body: Center(
+              child: Text(snapshot.hasError 
+                  ? 'Lỗi: ${snapshot.error}' 
+                  : 'Không tìm thấy thông tin người dùng'),
             ),
-            const SizedBox(height: 4),
-            Text(
-              user.email,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            // Thống kê người dùng
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildStatItem(
-                    context,
-                    '${user.daysUsed}',
-                    'Ngày sử dụng',
-                    theme.colorScheme.primary,
+          );
+        }
+        
+        final user = snapshot.data!;
+        
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Chi tiết người dùng'),
+            centerTitle: true,
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 24),
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                      ? NetworkImage(user.avatarUrl!) // Use NetworkImage
+                      : const AssetImage('assets/avatar.jpg') as ImageProvider, // Fallback
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  user.username, // Corrected: UserModel uses username
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  _buildStatItem(
-                    context,
-                    '${user.achievements}',
-                    'Thành tích',
-                    theme.colorScheme.secondary,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'ID: ${user.id}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
-                  _buildStatItem(
-                    context,
-                    '${user.efficiency.toInt()}%',
-                    'Hiệu suất',
-                    _getEfficiencyColor(user.efficiency),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user.email,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+                
+                // Biểu đồ hoạt động
+                _buildActivityGraph(context, theme),
+                
+                const SizedBox(height: 40),
+                
+                // Danh sách thành tựu gần đây (mô phỏng)
+                _buildRecentAchievements(context, theme),
+                
+                const SizedBox(height: 32),
+                
+                // Nút hành động
+                _buildActionButtons(context, user, userProvider),
+                
+                const SizedBox(height: 40),
+              ],
             ),
-            const SizedBox(height: 40),
-            
-            // Biểu đồ hoạt động
-            _buildActivityGraph(context, theme),
-            
-            const SizedBox(height: 40),
-            
-            // Danh sách thành tựu gần đây (mô phỏng)
-            _buildRecentAchievements(context, theme),
-            
-            const SizedBox(height: 32),
-            
-            // Nút hành động
-            _buildActionButtons(context, user, userProvider),
-            
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
   
@@ -280,84 +272,160 @@ class FriendDetailScreen extends StatelessWidget {
   }
   
   Widget _buildActionButtons(BuildContext context, UserModel user, UserProvider userProvider) {
-    final currentUser = userProvider.currentUser;
-    final isFriend = currentUser?.friendIds.contains(user.id) ?? false;
-    
+    // final currentUser = userProvider.currentUser; // Already available via provider if needed
+    // Use provider methods directly
+    final isFriend = userProvider.isFriend(user.id);
+    final hasSentRequest = userProvider.hasSentFriendRequestTo(user.id);
+    final hasReceivedRequest = userProvider.hasReceivedFriendRequestFrom(user.id);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Row(
+      child: Column(
         children: [
-          if (isFriend)
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  // Hiển thị dialog xác nhận
-                  bool confirm = await showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Hủy kết bạn'),
-                      content: Text('Bạn muốn hủy kết bạn với ${user.name}?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Hủy'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('Đồng ý'),
-                        ),
-                      ],
-                    ),
-                  ) ?? false;
-
-                  if (confirm) {
-                    await userProvider.removeFriend(user.id);
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
-                  }
-                },
-                icon: const Icon(Icons.person_remove),
-                label: const Text('Hủy kết bạn'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+          if (user.id == userProvider.currentUser?.id)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Text("Đây là trang cá nhân của bạn.", style: Theme.of(context).textTheme.titleMedium),
             )
+          else if (isFriend)
+            _buildRemoveFriendButton(context, user, userProvider)
+          else if (hasSentRequest)
+            _buildRequestSentButton(context)
+          else if (hasReceivedRequest)
+            _buildRespondToRequestButtons(context, user, userProvider)
           else
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await userProvider.sendFriendRequest(user.id);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Đã gửi lời mời kết bạn đến ${user.name}'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.person_add),
-                label: const Text('Kết bạn'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
+            _buildAddFriendButton(context, user, userProvider),
+          const SizedBox(height: 10), // Add some spacing
+          // General View Profile / Back button or other actions can go here
         ],
       ),
     );
   }
-  
-  Color _getEfficiencyColor(double efficiency) {
-    if (efficiency >= 85) {
-      return Colors.green;
-    } else if (efficiency >= 70) {
-      return Colors.orange;
-    } else {
-      return Colors.red;
-    }
+
+  Widget _buildRemoveFriendButton(BuildContext context, UserModel user, UserProvider userProvider) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        bool confirm = await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Hủy kết bạn'),
+            content: Text('Bạn muốn hủy kết bạn với ${user.username}?'), // Corrected: user.username
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Hủy'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Đồng ý'),
+              ),
+            ],
+          ),
+        ) ?? false;
+
+        if (confirm) {
+          bool success = await userProvider.removeFriend(user.id);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(success ? 'Đã hủy kết bạn với ${user.username}' : 'Lỗi khi hủy kết bạn')),
+            );
+            if (success) Navigator.pop(context); // Go back if successful
+          }
+        }
+      },
+      icon: const Icon(Icons.person_remove),
+      label: const Text('Hủy kết bạn'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
+        minimumSize: const Size(double.infinity, 48),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildAddFriendButton(BuildContext context, UserModel user, UserProvider userProvider) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        bool success = await userProvider.sendFriendRequest(user.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success 
+                  ? 'Đã gửi lời mời kết bạn đến ${user.username}' // Corrected: user.username
+                  : 'Lỗi khi gửi lời mời kết bạn'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      icon: const Icon(Icons.person_add),
+      label: const Text('Thêm bạn bè'),
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 48),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildRequestSentButton(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: null, // Disabled as request is already sent
+      icon: const Icon(Icons.check_circle_outline),
+      label: const Text('Đã gửi lời mời'),
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 48),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        disabledBackgroundColor: Colors.grey[300],
+        disabledForegroundColor: Colors.grey[700],
+      ),
+    );
+  }
+
+  Widget _buildRespondToRequestButtons(BuildContext context, UserModel user, UserProvider userProvider) {
+    // Find the specific request to get the friendshipId
+    final request = userProvider.incomingFriendRequests.firstWhere(
+      (req) => req.requesterId == user.id,
+      // orElse: () => null, // This should not happen if hasReceivedRequest is true
+    );
+
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          onPressed: () async {
+            bool success = await userProvider.acceptFriendRequest(request.friendshipId);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(success ? 'Đã chấp nhận ${user.username}' : 'Lỗi khi chấp nhận')),
+              );
+            }
+          },
+          icon: const Icon(Icons.check_circle),
+          label: const Text('Chấp nhận lời mời'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            minimumSize: const Size(double.infinity, 48),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: () async {
+            bool success = await userProvider.rejectFriendRequest(request.friendshipId);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(success ? 'Đã từ chối ${user.username}' : 'Lỗi khi từ chối')),
+              );
+            }
+          },
+          icon: const Icon(Icons.cancel),
+          label: const Text('Từ chối lời mời'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            minimumSize: const Size(double.infinity, 48),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
+      ],
+    );
   }
 }

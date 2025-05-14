@@ -5,6 +5,8 @@ import 'screens/main_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Add this import
 import 'dart:async'; // Add this import for StreamSubscription
+import 'package:provider/provider.dart'; // Add this import
+import 'providers/user_provider.dart'; // Add this import
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -19,10 +21,11 @@ class _MyAppState extends State<MyApp> {
   late final StreamSubscription<AuthState> _authStateSubscription; // Add this
 
   @override
-  void initState() { // Add initState
+  void initState() {
+    // Add initState
     super.initState();
     _initializeAuthStateListener();
-    _checkInitialAuthState(); 
+    _checkInitialAuthState();
   }
 
   Future<void> _checkInitialAuthState() async {
@@ -39,18 +42,33 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _initializeAuthStateListener() {
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final Session? session = data.session;
-      if (mounted) { // Check if the widget is still in the tree
-        setState(() {
-          _isLoggedIn = session != null;
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
+        .listen((data) {
+          final Session? session = data.session;
+          if (mounted) {
+            setState(() {
+              _isLoggedIn = session != null;
+            });
+            if (session != null) {
+              // Truyền accessToken thuần, không làm sạch, không thêm Bearer
+              String accessToken = session.accessToken;
+              Provider.of<UserProvider>(
+                context,
+                listen: false,
+              ).setAuthToken(accessToken);
+            } else {
+              Provider.of<UserProvider>(
+                context,
+                listen: false,
+              ).setAuthToken(null);
+            }
+          }
         });
-      }
-    });
   }
 
   @override
-  void dispose() { // Add dispose
+  void dispose() {
+    // Add dispose
     _authStateSubscription.cancel();
     super.dispose();
   }
@@ -60,7 +78,7 @@ class _MyAppState extends State<MyApp> {
       _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
     });
   }
-  
+
   void setLoggedIn(bool value) {
     // This method might still be used by guest login or other flows.
     // However, for Supabase OAuth, _authStateSubscription will primarily drive _isLoggedIn.
@@ -68,18 +86,30 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _isLoggedIn = value;
       });
+      // If manually setting loggedIn to false (e.g. guest logout), ensure token is also cleared.
+      // However, Supabase signOut should trigger onAuthStateChange which handles this.
+      // if (!value) {
+      //   Provider.of<UserProvider>(context, listen: false).setAuthToken(null);
+      // }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     // Thiết lập thanh trạng thái cho phù hợp với theme
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: _themeMode == ThemeMode.dark ? Brightness.light : Brightness.dark,
-      systemNavigationBarColor: _themeMode == ThemeMode.dark ? const Color(0xFF1A1A2E) : Colors.white,
-      systemNavigationBarIconBrightness: _themeMode == ThemeMode.dark ? Brightness.light : Brightness.dark,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness:
+            _themeMode == ThemeMode.dark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor:
+            _themeMode == ThemeMode.dark
+                ? const Color(0xFF1A1A2E)
+                : Colors.white,
+        systemNavigationBarIconBrightness:
+            _themeMode == ThemeMode.dark ? Brightness.light : Brightness.dark,
+      ),
+    );
 
     return MaterialApp(
       title: 'Smart Time Management',
@@ -111,7 +141,7 @@ class _MyAppState extends State<MyApp> {
           foregroundColor: const Color(0xFF4E6AF3),
           systemOverlayStyle: SystemUiOverlayStyle.light,
           titleTextStyle: GoogleFonts.poppins(
-            fontSize: 20, 
+            fontSize: 20,
             fontWeight: FontWeight.w600,
             color: const Color(0xFF4E6AF3),
           ),
@@ -150,11 +180,16 @@ class _MyAppState extends State<MyApp> {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFF4E6AF3), width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
@@ -190,7 +225,7 @@ class _MyAppState extends State<MyApp> {
           foregroundColor: const Color(0xFF4E6AF3),
           systemOverlayStyle: SystemUiOverlayStyle.dark,
           titleTextStyle: GoogleFonts.poppins(
-            fontSize: 20, 
+            fontSize: 20,
             fontWeight: FontWeight.w600,
             color: const Color(0xFF4E6AF3),
           ),
@@ -231,12 +266,17 @@ class _MyAppState extends State<MyApp> {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFF4E6AF3), width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
         snackBarTheme: SnackBarThemeData(
           backgroundColor: const Color(0xFF1A1A2E),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
@@ -246,9 +286,30 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       themeMode: _themeMode,
-      home: _isLoggedIn 
-          ? MainScreen(onThemeChanged: toggleTheme, onLogout: () => setLoggedIn(false))
-          : LoginScreen(onLogin: () => setLoggedIn(true)),
+      home:
+          _isLoggedIn
+              ? MainScreen(
+                onThemeChanged: toggleTheme,
+                onLogout: () async {
+                  // Make onLogout async
+                  // Signing out from Supabase will trigger onAuthStateChange,
+                  // which will then call setAuthToken(null) and set _isLoggedIn = false.
+                  // So, direct calls to setLoggedIn(false) or setAuthToken(null) here might be redundant
+                  // but can be kept for immediate UI feedback if needed, though onAuthStateChange is the source of truth.
+                  await Supabase.instance.client.auth.signOut();
+                  // setState(() => _isLoggedIn = false); // This will be handled by onAuthStateChange
+                  // Provider.of<UserProvider>(context, listen: false).setAuthToken(null); // Also handled by onAuthStateChange
+                },
+              )
+              : LoginScreen(
+                onLogin: () {
+                  // For Supabase OAuth, actual login state change is handled by onAuthStateChange.
+                  // This onLogin callback might be for other login types or can be removed if not used.
+                  // If it's for guest login that doesn't involve Supabase session, it's fine.
+                  // For now, we assume Supabase drives the login state.
+                  // setState(() => _isLoggedIn = true); // This will be handled by onAuthStateChange
+                },
+              ),
     );
   }
 }

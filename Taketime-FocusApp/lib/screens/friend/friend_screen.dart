@@ -4,6 +4,10 @@ import '../../providers/user_provider.dart';
 import '../../models/user_model.dart';
 import 'friend_detail_screen.dart';
 import 'friend_request_screen.dart';
+import '../../widgets/add_friend_button.dart';
+import '../../widgets/remove_friend_button.dart';
+import '../../widgets/request_sent_button.dart';
+import '../../widgets/view_profile_button.dart';
 
 class FriendScreen extends StatefulWidget {
   const FriendScreen({super.key});
@@ -15,21 +19,16 @@ class FriendScreen extends StatefulWidget {
 class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
-  String _searchUserId = '';
+  bool _isSearching = false; // To track if a search has been performed
+  String _searchQuery = ""; // To store the current search query
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
-    // Khởi tạo dữ liệu user nếu chưa có
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      if (userProvider.currentUser == null) {
-        userProvider.initUsers();
-      }
-    });
+    // Optionally, fetch initial data if not handled elsewhere
+    // Provider.of<UserProvider>(context, listen: false).fetchFriends();
+    // Provider.of<UserProvider>(context, listen: false).fetchFriendRequests();
   }
 
   @override
@@ -37,6 +36,23 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _performSearch(UserProvider userProvider) {
+    if (_searchController.text.trim().isNotEmpty) {
+      setState(() {
+        _isSearching = true; // Indicate that search is active
+        _searchQuery = _searchController.text.trim();
+      });
+      userProvider.searchUsersByQuery(_searchQuery);
+    } else {
+      // Clear search results if query is empty
+      setState(() {
+        _isSearching = false;
+        _searchQuery = "";
+        userProvider.searchedUsers.clear(); // Clear the list in provider
+      });
+    }
   }
 
   @override
@@ -48,7 +64,7 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kết bạn'),
+        title: const Text('Bạn bè'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -56,9 +72,7 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const FriendRequestScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const FriendRequestScreen()),
               );
             },
             tooltip: 'Lời mời kết bạn',
@@ -89,13 +103,29 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
   }
 
   Widget _buildFriendsTab(UserProvider userProvider, ThemeData theme) {
-    final friends = userProvider.friends;
+    // final friends = userProvider.friends; // Original line - now directly use userProvider.friends
 
-    if (userProvider.isLoading) {
+    // TEMPORARY MOCK DATA REMOVED - Relying on API data via UserProvider
+    // List<UserModel> displayFriends = List.from(userProvider.friends);
+    // if (userProvider.friends.isEmpty && !userProvider.isLoading /* && userProvider.currentUser != null */) {
+    //     // ignore: avoid_print
+    //     print('[DEBUG] Using MOCK friend data for UI preview in _buildFriendsTab. Remove this for production. CurrentUser check relaxed for mock data display.');
+    //     displayFriends = [
+    //         UserModel(id: 'mockuser1', username: 'Alice Wonderland', email: 'alice.w@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=alice', friendshipId: 'fs_mock1'),
+    //         UserModel(id: 'mockuser2', username: 'Bob The Great', email: 'bob.g@example.com', avatarUrl: null, friendshipId: 'fs_mock2'), // No avatar
+    //         UserModel(id: 'mockuser3', username: 'Charlie Cool', email: 'charlie.c@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=charlie', friendshipId: 'fs_mock3'),
+    //         UserModel(id: 'mockuser4', username: 'Diana Daring', email: 'diana.d@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=diana', friendshipId: 'fs_mock4'),
+    //     ];
+    // }
+    // END TEMPORARY MOCK DATA
+
+    final displayFriends = userProvider.friends; // Use actual friends list
+
+    if (userProvider.isLoading && displayFriends.isEmpty) { // Show loader only if displayFriends list is empty and loading
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (friends.isEmpty) {
+    if (displayFriends.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -137,10 +167,10 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: friends.length,
+      itemCount: displayFriends.length,
       itemBuilder: (context, index) {
-        final friend = friends[index];
-        return _buildFriendCard(friend, theme, userProvider);
+        final friend = displayFriends[index];
+        return _buildFriendCard(friend, theme, userProvider, isSearchResult: false);
       },
     );
   }
@@ -149,61 +179,62 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Tìm bạn bè bằng User ID',
-            style: theme.textTheme.titleMedium,
+            'Tìm bạn bè bằng tên hoặc User ID',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Nhập User ID (VD: user456)',
+              hintText: 'Nhập tên hoặc User ID',
               prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear),
                       onPressed: () {
                         _searchController.clear();
+                        _performSearch(userProvider); // Clear results
                         setState(() {
-                          _isSearching = false;
-                          _searchUserId = '';
+                           _isSearching = false; // Reset search state
                         });
                       },
                     )
                   : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
             ),
             onChanged: (value) {
+              // Update search query state for enabling button or live search (optional)
               setState(() {
-                _searchUserId = value;
+                // _searchQuery = value; // If needed for other logic
               });
             },
             onSubmitted: (value) {
-              if (value.isNotEmpty) {
-                setState(() {
-                  _isSearching = true;
-                });
-                userProvider.searchUserById(value);
-              }
+              _performSearch(userProvider);
             },
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _searchUserId.isNotEmpty
-                ? () {
-                    setState(() {
-                      _isSearching = true;
-                    });
-                    userProvider.searchUserById(_searchUserId);
-                  }
+          ElevatedButton.icon(
+            icon: const Icon(Icons.search),
+            label: const Text('Tìm kiếm'),
+            onPressed: _searchController.text.trim().isNotEmpty
+                ? () => _performSearch(userProvider)
                 : null,
             style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              textStyle: theme.textTheme.titleMedium,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Tìm kiếm'),
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -215,20 +246,20 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
   }
 
   Widget _buildSearchResults(UserProvider userProvider, ThemeData theme) {
-    if (!_isSearching) {
+    if (!_isSearching) { // If no search has been performed yet
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.search,
+              Icons.search_off_outlined,
               size: 80,
               color: theme.colorScheme.primary.withOpacity(0.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'Nhập User ID để tìm kiếm bạn bè',
-              style: theme.textTheme.bodyLarge,
+              'Nhập từ khóa để tìm kiếm người dùng.',
+              style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
           ],
@@ -240,21 +271,28 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
       return const Center(child: CircularProgressIndicator());
     }
 
-    final foundUser = userProvider.getUserById(_searchUserId);
-    if (foundUser == null) {
+    final foundUsers = userProvider.searchedUsers;
+
+    if (foundUsers.isEmpty && _isSearching) { // If search was done but no results
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.person_off,
+              Icons.person_search_outlined,
               size: 80,
-              color: theme.colorScheme.error.withOpacity(0.5),
+              color: theme.colorScheme.error.withOpacity(0.7),
             ),
             const SizedBox(height: 16),
             Text(
-              'Không tìm thấy người dùng',
-              style: theme.textTheme.titleLarge,
+              'Không tìm thấy người dùng nào cho "${_searchQuery}".',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Thử lại với từ khóa khác.',
+              style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
           ],
@@ -262,179 +300,174 @@ class _FriendScreenState extends State<FriendScreen> with SingleTickerProviderSt
       );
     }
 
-    // Không hiển thị bản thân trong kết quả tìm kiếm
-    if (foundUser.id == userProvider.currentUser?.id) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.person,
-              size: 80,
-              color: theme.colorScheme.primary.withOpacity(0.5),
+    // Filter out the current user from search results
+    final displayUsers = foundUsers.where((user) => user.id != userProvider.currentUser?.id).toList();
+
+    if (displayUsers.isEmpty && foundUsers.isNotEmpty) {
+        // This case means the only user found was the current user.
+        return Center(
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                    Icon(
+                        Icons.no_accounts_outlined,
+                        size: 80,
+                        color: theme.colorScheme.primary.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                        'Bạn không thể tự kết bạn với chính mình.',
+                        style: theme.textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                    ),
+                ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Đây là ID của bạn',
-              style: theme.textTheme.titleLarge,
-              textAlign: TextAlign.center,
+        );
+    }
+    
+    if (displayUsers.isEmpty) { 
+        return Center( // Should be covered by the above cases, but as a fallback
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                    Icon(
+                        Icons.sentiment_dissatisfied_outlined,
+                        size: 80,
+                        color: theme.colorScheme.primary.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                        'Không tìm thấy người dùng nào khác.',
+                        style: theme.textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                    ),
+                ],
             ),
-          ],
-        ),
-      );
+        );
     }
 
-    return _buildFriendCard(foundUser, theme, userProvider);
+    return ListView.builder(
+      itemCount: displayUsers.length,
+      itemBuilder: (context, index) {
+        // For search results, we always show AddFriendButton, RequestSentButton, or ViewProfileButton (if already friend)
+        // The _buildActionButton will handle this logic.
+        return _buildFriendCard(displayUsers[index], theme, userProvider, isSearchResult: true);
+      },
+    );
   }
 
-  Widget _buildFriendCard(UserModel user, ThemeData theme, UserProvider userProvider) {
-    final currentUser = userProvider.currentUser;
-    final isFriend = currentUser?.friendIds.contains(user.id) ?? false;
-
-    // Kiểm tra xem đã gửi lời mời kết bạn chưa
+  Widget _buildFriendCard(UserModel user, ThemeData theme, UserProvider userProvider, {bool isSearchResult = false}) {
+    // Default avatar if URL is null or empty
+    Widget avatarWidget;
+    if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) {
+      try {
+        avatarWidget = CircleAvatar(
+          radius: 28,
+          backgroundImage: NetworkImage(user.avatarUrl!),
+          backgroundColor: theme.colorScheme.surfaceVariant,
+        );
+      } catch (e) {
+        // Fallback for invalid URL or network error
+        avatarWidget = CircleAvatar(
+          radius: 28,
+          backgroundColor: theme.colorScheme.primaryContainer,
+          child: Icon(
+            Icons.person_outline,
+            size: 32,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
+        );
+      }
+    } else {
+      // Fallback for null or empty URL
+      avatarWidget = CircleAvatar(
+        radius: 28,
+        backgroundColor: theme.colorScheme.primaryContainer,
+        child: Icon(
+          Icons.person_outline,
+          size: 32,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+      );
+    }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundImage: AssetImage(user.avatarUrl),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user.name,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'ID: ${user.id}',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Hiệu suất: ${user.efficiency.toInt()}%',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _getEfficiencyColor(user.efficiency),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FriendDetailScreen(userId: user.id),
-                        ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Xem chi tiết'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionButton(user, userProvider),
-                ),
-              ],
-            ),
-          ],
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        leading: avatarWidget,
+        title: Text(
+          user.username, 
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
+        subtitle: Text(
+          user.email, 
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        trailing: _buildActionButton(user, userProvider, theme, isSearchResult),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FriendDetailScreen(userId: user.id), // Corrected: Pass userId
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildActionButton(UserModel user, UserProvider userProvider) {
-    final currentUser = userProvider.currentUser;
-    final isFriend = currentUser?.friendIds.contains(user.id) ?? false;
-    final hasPendingRequest = userProvider.outgoingRequests.any(
-      (request) => request.receiverId == user.id
-    );
+  Widget _buildActionButton(UserModel user, UserProvider userProvider, ThemeData theme, bool isSearchResult) {
+    final bool isCurrentUser = user.id == userProvider.currentUser?.id;
 
-    if (isFriend) {
-      return ElevatedButton.icon(
-        onPressed: () async {
-          // Hiển thị dialog xác nhận
-          bool confirm = await showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Hủy kết bạn'),
-              content: Text('Bạn muốn hủy kết bạn với ${user.name}?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Hủy'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Đồng ý'),
-                ),
-              ],
-            ),
-          ) ?? false;
-
-          if (confirm) {
-            await userProvider.removeFriend(user.id);
-          }
-        },
-        icon: const Icon(Icons.person_remove),
-        label: const Text('Hủy kết bạn'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-      );
-    } else if (hasPendingRequest) {
-      return ElevatedButton(
-        onPressed: null,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        child: const Text('Đã gửi lời mời'),
-      );
-    } else {
-      return ElevatedButton.icon(
-        onPressed: () {
-          userProvider.sendFriendRequest(user.id);
-        },
-        icon: const Icon(Icons.person_add),
-        label: const Text('Kết bạn'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-      );
+    if (isCurrentUser) {
+      // For the current user, always show ViewProfileButton, regardless of tab.
+      return ViewProfileButton(userId: user.id);
     }
-  }
 
-  Color _getEfficiencyColor(double efficiency) {
-    if (efficiency >= 85) {
-      return Colors.green;
-    } else if (efficiency >= 70) {
-      return Colors.orange;
-    } else {
-      return Colors.red;
+    // Scenario 1: Displaying in the "Friends" tab
+    if (!isSearchResult) {
+      // In the Friends tab, users are expected to be friends.
+      // We show a "Remove Friend" button.
+      return RemoveFriendButton(user: user);
+    }
+    // Scenario 2: Displaying in "Search Results" tab
+    else { // isSearchResult is true
+      // Prioritize friendshipStatus from the search result itself
+      if (user.friendshipStatus?.toLowerCase() == 'accepted') {
+        return ViewProfileButton(userId: user.id);
+      }
+      // Fallback to provider lists if status from search isn't 'accepted' or is null.
+      // These lists are updated more dynamically after actions.
+      else if (userProvider.isFriend(user.id)) {
+        // Handles cases where user became a friend after the search query but before UI update for this item,
+        // or if search API didn't return 'accepted' but they are in the local friends list.
+        return ViewProfileButton(userId: user.id);
+      } else if (userProvider.hasSentFriendRequestTo(user.id)) {
+        return const RequestSentButton();
+      } else if (userProvider.hasReceivedFriendRequestFrom(user.id)) {
+        // If there's an incoming request from this user
+        return ElevatedButton(
+          onPressed: () {
+            // Navigate to the friend request screen where they can accept/deny
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FriendRequestScreen()),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.secondaryContainer,
+            foregroundColor: theme.colorScheme.onSecondaryContainer,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          child: const Text('Phản hồi'), // "Respond"
+        );
+      } else {
+        // Not a friend, no pending requests either way according to both search status (not 'accepted') and provider lists.
+        return AddFriendButton(user: user);
+      }
     }
   }
 }
