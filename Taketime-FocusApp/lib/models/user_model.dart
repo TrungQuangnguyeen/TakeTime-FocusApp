@@ -6,6 +6,7 @@ class UserModel {
   String? friendshipId; // Added for storing friendship ID when user is a friend
   final String?
   friendshipStatus; // Added for storing friendship status from search results
+  String? projectId; // Thêm trường này để lưu projectId của user
 
   UserModel({
     required this.id,
@@ -14,6 +15,7 @@ class UserModel {
     this.avatarUrl,
     this.friendshipId,
     this.friendshipStatus, // Added
+    this.projectId, // Thêm trường này
   });
 
   UserModel copyWith({
@@ -23,6 +25,7 @@ class UserModel {
     String? avatarUrl,
     String? friendshipId,
     String? friendshipStatus, // Added
+    String? projectId, // Thêm trường này
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -31,6 +34,7 @@ class UserModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       friendshipId: friendshipId ?? this.friendshipId,
       friendshipStatus: friendshipStatus ?? this.friendshipStatus, // Added
+      projectId: projectId ?? this.projectId, // Thêm trường này
     );
   }
 
@@ -64,6 +68,10 @@ class UserModel {
       'friendshipStatus',
       'friendship_status',
     ]); // Added
+    final String? parsedProjectId = getString([
+      'projectId',
+      'project_id',
+    ]); // Thêm trường này
 
     // ignore: avoid_print
     print("[UserModel.fromJson] Parsing JSON: $json");
@@ -87,6 +95,10 @@ class UserModel {
     print(
       "[UserModel.fromJson] -> Extracted friendshipStatus: '$parsedFriendshipStatus'",
     ); // Added
+    // ignore: avoid_print
+    print(
+      "[UserModel.fromJson] -> Extracted projectId: '$parsedProjectId'",
+    ); // Thêm log
 
     if (parsedId.isEmpty) {
       // ignore: avoid_print
@@ -116,6 +128,7 @@ class UserModel {
       avatarUrl: parsedAvatarUrl,
       friendshipId: parsedFriendshipId,
       friendshipStatus: parsedFriendshipStatus, // Added
+      projectId: parsedProjectId, // Thêm trường này
     );
   }
 
@@ -130,6 +143,7 @@ class UserModel {
       'friendshipId': friendshipId,
       'friendshipStatus':
           friendshipStatus, // Added (though primarily for client-side use from search)
+      'projectId': projectId, // Thêm trường này (nếu cần gửi đi)
     };
   }
 }

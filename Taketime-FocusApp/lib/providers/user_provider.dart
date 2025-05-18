@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import '../models/friend_request_model.dart'; // Correct import for FriendRequest
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProvider with ChangeNotifier {
   UserModel? _currentUser;
@@ -18,6 +19,7 @@ class UserProvider with ChangeNotifier {
 
   final String _baseUrl =
       kIsWeb ? "http://localhost:5220" : "http://10.0.2.2:5220";
+  final String _accessTokenKey = 'access_token';
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -42,16 +44,20 @@ class UserProvider with ChangeNotifier {
       print(
         '[UserProvider] Auth token set. Fetching current user, friends, and friend requests.',
       );
-      fetchCurrentUser();
-      fetchFriends();
-      fetchFriendRequests(); // This will now also populate _acceptedFriendships
+      fetchCurrentUser().then((_) {
+        if (_currentUser != null) {
+          fetchFriends();
+          fetchFriendRequests();
+          fetchUserProject();
+        }
+      });
     } else {
       print('[UserProvider] Auth token cleared. Clearing user data.');
       _currentUser = null;
       _friends = [];
       _incomingFriendRequests = [];
       _outgoingFriendRequests = [];
-      _acceptedFriendships = []; // Clear accepted friendships
+      _acceptedFriendships = [];
       _searchedUsers = [];
     }
     notifyListeners();
@@ -63,10 +69,13 @@ class UserProvider with ChangeNotifier {
       print(
         '[UserProvider] fetchCurrentUser: _accessToken is null, returning.',
       );
+      _currentUser = null;
+      notifyListeners();
       return;
     }
+
     print(
-      '[UserProvider] Current Access Token being used for /api/users/profile: \\$_accessToken',
+      '[UserProvider] Current Access Token being used for /api/users/profile: $_accessToken',
     );
 
     _isLoading = true;
@@ -76,19 +85,27 @@ class UserProvider with ChangeNotifier {
         Uri.parse('$_baseUrl/api/users/profile'),
         headers: _headers,
       );
+
+      print(
+        '[UserProvider] Fetch Current User Status Code: ${response.statusCode}',
+      );
+      print(
+        '[UserProvider] Fetch Current User Response Body: ${response.body}',
+      );
+
       if (response.statusCode == 200) {
-        _currentUser = UserModel.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>,
+        final Map<String, dynamic> userData = jsonDecode(response.body);
+        _currentUser = UserModel.fromJson(userData);
+        print(
+          '[UserProvider] fetchCurrentUser completed for user ID: ${_currentUser?.id}',
         );
       } else {
-        print(
-          'Failed to fetch current user: \\${response.statusCode} \\${response.body}',
-        );
-        _currentUser = null;
+        print('Failed to fetch current user: ${response.statusCode}');
+        await logout();
       }
     } catch (e) {
-      print('Error fetching current user: \\${e.toString()}');
-      _currentUser = null;
+      print('Exception fetching current user: $e');
+      await logout();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -96,13 +113,13 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> fetchFriends() async {
-    print('[UserProvider] fetchFriends called.'); // Added log
-    if (_accessToken == null) {
+    print('[UserProvider] fetchFriends called.');
+    if (_accessToken == null || _currentUser == null) {
       print(
-        '[UserProvider] fetchFriends: _accessToken is null, returning.',
-      ); // Added log
+        '[UserProvider] fetchFriends: _accessToken or _currentUser is null, returning.',
+      );
       _friends = [];
-      notifyListeners(); // Notify even if token is null to clear list
+      notifyListeners();
       return;
     }
     _isLoading = true;
@@ -115,19 +132,12 @@ class UserProvider with ChangeNotifier {
       );
 
       print('[UserProvider] Fetch Friends Status Code: ${response.statusCode}');
-      print(
-        '[UserProvider] Fetch Friends Response Body: ${response.body}',
-      ); // Uncommented for detailed API response
+      print('[UserProvider] Fetch Friends Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
         for (var item in data) {
           try {
-            // The API /api/FriendShip/friends returns a flat list of user objects
-            // No need to look for 'friendUser' or 'friend_user' here.
-            // Each 'item' is a friend's data directly.
-            // UserModel.fromJson will now handle the different key names (e.g., user_id, full_name)
-            // Note: friendshipId might be missing from this endpoint's response.
             successfullyParsedFriends.add(
               UserModel.fromJson(item as Map<String, dynamic>),
             );
@@ -169,17 +179,15 @@ class UserProvider with ChangeNotifier {
       );
       _incomingFriendRequests = [];
       _outgoingFriendRequests = [];
-      _acceptedFriendships = []; // Clear accepted friendships
+      _acceptedFriendships = [];
       notifyListeners();
       return;
     }
     _isLoading = true;
     notifyListeners();
 
-    List<FriendRequest> successfullyParsedRequests =
-        []; // Temporary list for successfully parsed items
-    int previousIncomingCount =
-        _incomingFriendRequests.length; // Track previous count
+    List<FriendRequest> successfullyParsedRequests = [];
+    int previousIncomingCount = _incomingFriendRequests.length;
 
     try {
       final response = await http.get(
@@ -204,7 +212,6 @@ class UserProvider with ChangeNotifier {
             print(
               '[UserProvider] Error parsing individual friend request item: $item, error: $e',
             );
-            // Skip this item and continue with the next
           }
         }
 
@@ -234,9 +241,7 @@ class UserProvider with ChangeNotifier {
                 )
                 .toList();
 
-        // Check if there are new incoming requests
         if (_incomingFriendRequests.length > previousIncomingCount) {
-          // Notify listeners that there are new friend requests
           notifyListeners();
         }
       } else {
@@ -262,8 +267,6 @@ class UserProvider with ChangeNotifier {
 
   Future<UserModel?> fetchUserByIdFromApi(String userId) async {
     if (_accessToken == null) return null;
-    // This method might be redundant if searchUsersByQuery is flexible enough
-    // For now, it assumes searching by ID via the general search endpoint
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/api/FriendShip/search?query=$userId'),
@@ -272,7 +275,6 @@ class UserProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
         if (data.isNotEmpty) {
-          // Assuming the API returns the exact match first or only for an ID query
           return UserModel.fromJson(data.first as Map<String, dynamic>);
         }
         return null;
@@ -285,14 +287,12 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<List<UserModel>> searchUsersByQuery(String query) async {
-    print(
-      '[UserProvider] searchUsersByQuery called with query: "$query"',
-    ); // Added log
+    print('[UserProvider] searchUsersByQuery called with query: "$query"');
 
     if (_accessToken == null) {
       print(
         '[UserProvider] searchUsersByQuery: _accessToken is null. Aborting search.',
-      ); // Added log
+      );
       _searchedUsers = [];
       notifyListeners();
       return [];
@@ -300,7 +300,7 @@ class UserProvider with ChangeNotifier {
     if (query.isEmpty) {
       print(
         '[UserProvider] searchUsersByQuery: query is empty. Clearing results.',
-      ); // Added log
+      );
       _searchedUsers = [];
       notifyListeners();
       return [];
@@ -311,18 +311,16 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
     print(
       '[UserProvider] searchUsersByQuery: Cleared _searchedUsers and notified listeners. _isLoading is true.',
-    ); // Added log
+    );
 
     try {
-      final encodedQuery = Uri.encodeQueryComponent(
-        query,
-      ); // Mã hóa query string
+      final encodedQuery = Uri.encodeQueryComponent(query);
       final searchUrl = Uri.parse(
         '$_baseUrl/api/FriendShip/search?query=$encodedQuery',
       );
       print(
         '[UserProvider] searchUsersByQuery: Attempting to call API: $searchUrl',
-      ); // Added log
+      );
 
       final response = await http.get(searchUrl, headers: _headers);
       print('[UserProvider] Search Users Status Code: ${response.statusCode}');
@@ -332,7 +330,7 @@ class UserProvider with ChangeNotifier {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
         print(
           '[UserProvider] searchUsersByQuery: Successfully decoded response. Data length: [32m${data.length}[0m',
-        ); // Added log
+        );
 
         List<UserModel> parsedUsers = [];
         for (var jsonItem in data) {
@@ -343,13 +341,13 @@ class UserProvider with ChangeNotifier {
           } catch (e) {
             print(
               '[UserProvider] searchUsersByQuery: Error parsing user item: $jsonItem. Error: $e',
-            ); // Added log for individual parsing error
+            );
           }
         }
         _searchedUsers = parsedUsers;
         print(
           '[UserProvider] searchUsersByQuery: Parsed ${_searchedUsers.length} users.',
-        ); // Added log
+        );
         if (data.isNotEmpty && _searchedUsers.isEmpty) {
           print(
             '[UserProvider] searchUsersByQuery: Warning - API returned data but no users were successfully parsed.',
@@ -362,15 +360,14 @@ class UserProvider with ChangeNotifier {
         _searchedUsers = [];
       }
     } catch (e, stackTrace) {
-      // Added stackTrace
       print('[UserProvider] Error searching users (in catch block): $e');
-      print('[UserProvider] StackTrace: $stackTrace'); // Added stacktrace log
+      print('[UserProvider] StackTrace: $stackTrace');
       _searchedUsers = [];
     } finally {
       _isLoading = false;
       print(
         '[UserProvider] searchUsersByQuery: Completed. _isLoading is false. Searched users count: ${_searchedUsers.length}',
-      ); // Added log
+      );
       notifyListeners();
     }
     return _searchedUsers;
@@ -414,7 +411,6 @@ class UserProvider with ChangeNotifier {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/FriendShip/respond/accept/$friendshipId'),
         headers: _headers,
-        // body: jsonEncode({}), // Empty body if API expects it or no body
       );
       if (response.statusCode == 200 || response.statusCode == 204) {
         await fetchFriends();
@@ -443,10 +439,9 @@ class UserProvider with ChangeNotifier {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/FriendShip/respond/deny/$friendshipId'),
         headers: _headers,
-        // body: jsonEncode({}), // Empty body if API expects it or no body
       );
       if (response.statusCode == 200) {
-        await fetchFriendRequests(); // Refresh requests
+        await fetchFriendRequests();
         success = true;
       } else {
         print(
@@ -472,7 +467,6 @@ class UserProvider with ChangeNotifier {
 
     FriendRequest? friendshipToRemove;
     try {
-      // Find the accepted friendship involving the current user and the user to remove
       friendshipToRemove = _acceptedFriendships.firstWhere(
         (req) =>
             (req.requesterId == _currentUser!.id &&
@@ -481,7 +475,6 @@ class UserProvider with ChangeNotifier {
                 req.requesterId == userIdToRemove),
       );
     } catch (e) {
-      // This catch block will be hit if no element satisfies the condition.
       print(
         '[UserProvider] No accepted friendship found with user $userIdToRemove in local _acceptedFriendships list. Cannot remove.',
       );
@@ -489,8 +482,6 @@ class UserProvider with ChangeNotifier {
         '[UserProvider] Current _acceptedFriendships count: ${_acceptedFriendships.length}. Contents:',
       );
       for (var fr in _acceptedFriendships) {
-        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
-        // PLEASE REPLACE 'friendshipId' WITH THE CORRECT FIELD NAME FOR THE ID IN YOUR FriendRequestModel
         print(
           '[UserProvider] Accepted Friendship: ID=${fr.friendshipId}, Requester=${fr.requesterId}, Receiver=${fr.receiverId}, Status=${fr.status}',
         );
@@ -498,7 +489,6 @@ class UserProvider with ChangeNotifier {
       return false;
     }
 
-    // PLEASE REPLACE 'friendshipId' WITH THE CORRECT FIELD NAME FOR THE ID IN YOUR FriendRequestModel
     final String actualFriendshipId = friendshipToRemove.friendshipId;
 
     print(
@@ -542,7 +532,59 @@ class UserProvider with ChangeNotifier {
     return success;
   }
 
-  // Utility methods
+  Future<void> fetchUserProject() async {
+    print('[UserProvider] fetchUserProject called.');
+    if (_accessToken == null || _currentUser == null) {
+      print(
+        '[UserProvider] fetchUserProject: _accessToken or _currentUser is null, returning.',
+      );
+      return;
+    }
+
+    final url = Uri.parse('$_baseUrl/api/Project');
+    try {
+      final response = await http.get(url, headers: _headers);
+
+      print(
+        '[UserProvider] Fetch User Project Status Code: ${response.statusCode}',
+      );
+      print(
+        '[UserProvider] Fetch User Project Response Body: ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> projectDataList = jsonDecode(response.body);
+
+        if (projectDataList.isNotEmpty) {
+          final Map<String, dynamic> projectData = projectDataList.first;
+          final String? projectId = projectData['project_id'] as String?;
+
+          if (projectId != null && _currentUser != null) {
+            _currentUser = _currentUser!.copyWith(projectId: projectId);
+            print(
+              '[UserProvider] fetchUserProject: User projectId updated to $projectId.',
+            );
+            notifyListeners();
+          } else {
+            print(
+              '[UserProvider] fetchUserProject: Project ID not found in response or currentUser is null.',
+            );
+          }
+        } else {
+          print(
+            '[UserProvider] fetchUserProject: No projects found for the user (empty array).',
+          );
+        }
+      } else {
+        print(
+          '[UserProvider] Failed to fetch user project: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('[UserProvider] Exception fetching user project: $e');
+    }
+  }
+
   bool isFriend(String userId) {
     return _friends.any((friend) => friend.id == userId);
   }
@@ -558,36 +600,36 @@ class UserProvider with ChangeNotifier {
       (request) => request.requesterId == userId && request.status == 'Pending',
     );
   }
-}
 
-// Cần đảm bảo UserModel và FriendRequest có factory constructor fromJson
-// Ví dụ cho FriendRequest (điều chỉnh cho phù hợp với API response của bạn):
-/*
-class FriendRequest {
-  final String id; // Đây có thể là friendshipId
-  final String senderId;
-  final String receiverId;
-  final DateTime createdAt;
-  String status; // 'pending', 'accepted', 'rejected'
+  void updateCurrentUser(UserModel newUser) {
+    _currentUser = newUser;
+    notifyListeners();
+  }
 
-  FriendRequest({
-    required this.id,
-    required this.senderId,
-    required this.receiverId,
-    required this.createdAt,
-    required this.status,
-  });
+  Future<void> logout() async {
+    // Implementation of logout method
+  }
 
-  FriendRequest copyWith({ ... }) { ... } // Giữ lại nếu bạn có
-
-  factory FriendRequest.fromJson(Map<String, dynamic> json) {
-    return FriendRequest(
-      id: json['friendshipId'] ?? json['id'], // Kiểm tra key API trả về
-      senderId: json['requesterId'] ?? json['senderId'],
-      receiverId: json['receiverId'],
-      createdAt: DateTime.parse(json['requestedAt'] ?? json['createdAt']),
-      status: json['relationshipStatus'] ?? json['status'],
-    );
+  Future<void> loadAccessToken() async {
+    print('[UserProvider] loadAccessToken called.');
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString(_accessTokenKey);
+    if (_accessToken != null) {
+      print('[UserProvider] Access token loaded.');
+      await fetchCurrentUser();
+      if (_currentUser != null) {
+        await fetchFriends();
+        await fetchFriendRequests();
+        await fetchUserProject();
+      }
+    } else {
+      print('[UserProvider] No access token found.');
+      _currentUser = null;
+      _friends = [];
+      _incomingFriendRequests = [];
+      _outgoingFriendRequests = [];
+      _acceptedFriendships = [];
+      _searchedUsers = [];
+    }
   }
 }
-*/

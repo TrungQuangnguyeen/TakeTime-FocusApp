@@ -29,31 +29,42 @@ class TopNotification extends StatefulWidget {
   }) {
     OverlayState? overlayState = Overlay.of(context);
     OverlayEntry? overlayEntry;
-    
+
     overlayEntry = OverlayEntry(
-      builder: (context) => TopNotification(
-        message: message,
-        backgroundColor: backgroundColor,
-        icon: icon,
-        duration: duration,
-        onDismiss: () {
-          overlayEntry?.remove();
-        },
-      ),
+      builder:
+          (context) => TopNotification(
+            message: message,
+            backgroundColor: backgroundColor,
+            icon: icon,
+            duration: duration,
+            onDismiss: () {
+              overlayEntry?.remove();
+            },
+          ),
     );
-    
+
     overlayState.insert(overlayEntry);
-    
+
+    void removeOverlay() {
+      if (overlayEntry != null) {
+        overlayEntry!.remove();
+        overlayEntry = null;
+      }
+    }
+
     Future.delayed(duration, () {
-      overlayEntry?.remove();
+      if (overlayEntry != null && overlayState.mounted) {
+        removeOverlay();
+      }
     });
   }
 }
 
-class _TopNotificationState extends State<TopNotification> with SingleTickerProviderStateMixin {
+class _TopNotificationState extends State<TopNotification>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -67,7 +78,7 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
       reverseCurve: Curves.easeIn,
     );
     _animationController.forward();
-    
+
     Future.delayed(widget.duration - const Duration(milliseconds: 300), () {
       if (mounted) {
         _animationController.reverse().then((_) {
@@ -78,13 +89,13 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
       }
     });
   }
-  
+
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -103,7 +114,10 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
                 opacity: _animation,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.backgroundColor,
                     borderRadius: BorderRadius.circular(12.0),
@@ -117,11 +131,7 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        widget.icon,
-                        color: Colors.white,
-                        size: 24.0,
-                      ),
+                      Icon(widget.icon, color: Colors.white, size: 24.0),
                       const SizedBox(width: 12.0),
                       Expanded(
                         child: Text(
@@ -134,7 +144,11 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 18.0),
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18.0,
+                        ),
                         onPressed: widget.onDismiss,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
