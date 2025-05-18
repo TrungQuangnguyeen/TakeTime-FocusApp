@@ -70,6 +70,10 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
     if (_formKey.currentState!.validate()) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final currentUser = userProvider.currentUser;
+      final planProvider = Provider.of<PlanProvider>(
+        context,
+        listen: false,
+      ); // Get PlanProvider instance
 
       if (currentUser == null) {
         // Show error if user is not logged in
@@ -204,6 +208,55 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         return;
       }
 
+      // Nếu đang chỉnh sửa task
+      if (_isEditing) {
+        print('[CreatePlanScreen] Updating existing task...');
+
+        // Chuẩn bị dữ liệu cập nhật
+        final Map<String, dynamic> updates = {
+          'title': _titleController.text.trim(),
+          'description': _noteController.text.trim(),
+          'timestart': _startTime.toIso8601String(),
+          'deadline': _endTime.toIso8601String(),
+          // Tính toán reminder_time (10 phút trước deadline)
+          'reminder_time':
+              _endTime.subtract(const Duration(minutes: 10)).toIso8601String(),
+          'priority':
+              _priority == PlanPriority.medium
+                  ? 'mid'
+                  : _priority.toString().split('.').last.toLowerCase(),
+          // Status có thể được cập nhật riêng nếu cần, ở đây không thay đổi status khi chỉnh sửa thời gian/nội dung
+          // 'status': ...
+        };
+
+        // Gọi phương thức cập nhật trong PlanProvider
+        bool success = await planProvider.updateTask(
+          widget.initialPlan!.id,
+          updates,
+          userProvider,
+        );
+
+        if (success) {
+          TopNotification.show(
+            context,
+            message: 'Đã cập nhật kế hoạch thành công.',
+            backgroundColor: Colors.green,
+            icon: Icons.check_circle,
+          );
+          Navigator.of(
+            context,
+          ).pop(true); // Trả về true để báo hiệu cập nhật thành công
+        } else {
+          TopNotification.show(
+            context,
+            message: 'Lỗi khi cập nhật kế hoạch.',
+            backgroundColor: Colors.red,
+            icon: Icons.error,
+          );
+        }
+        return; // Kết thúc hàm sau khi xử lý cập nhật
+      }
+
       // Bước 2: Tạo Task mới
       final taskTitle = _titleController.text.trim();
       final taskDescription = _noteController.text.trim();
@@ -217,6 +270,14 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       // Tính toán reminder_time (10 phút trước deadline)
       final reminderTime = taskDeadline.subtract(const Duration(minutes: 10));
 
+      // Xác định trạng thái ban đầu dựa trên timestart
+      String initialStatus;
+      if (taskStartTime.isAfter(DateTime.now())) {
+        initialStatus = 'upcoming';
+      } else {
+        initialStatus = 'inprogress';
+      }
+
       final taskApiUrl = "${userProvider.baseUrl}/api/Task";
 
       print('// --- Task Request Details ---');
@@ -226,7 +287,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       print('[CreatePlanScreen] Sending headers: ${userProvider.headers}');
       // Log body carefully, especially if it contains sensitive info (though here it's plan data)
       print(
-        '[CreatePlanScreen] Sending body: ${jsonEncode({'title': taskTitle, 'description': taskDescription, 'project_id': userProjectId, 'timestart': taskStartTime.toIso8601String(), 'deadline': taskDeadline.toIso8601String(), 'reminder_time': reminderTime.toIso8601String(), 'priority': taskPriority})}',
+        '[CreatePlanScreen] Sending body: ${jsonEncode({'title': taskTitle, 'description': taskDescription, 'project_id': userProjectId, 'timestart': taskStartTime.toIso8601String(), 'deadline': taskDeadline.toIso8601String(), 'reminder_time': reminderTime.toIso8601String(), 'priority': taskPriority, 'status': initialStatus})}',
       );
       print('// ----------------------------');
 
@@ -245,6 +306,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
             'deadline': taskDeadline.toIso8601String(),
             'reminder_time': reminderTime.toIso8601String(),
             'priority': taskPriority,
+            'status': initialStatus,
           }),
         );
 

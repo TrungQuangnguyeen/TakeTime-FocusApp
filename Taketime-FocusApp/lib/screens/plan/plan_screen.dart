@@ -464,34 +464,9 @@ class _PlanScreenState extends State<PlanScreen>
   }
 
   void _navigateToCreatePlan() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder:
-            (context) => CreatePlanScreen(
-              initialPlan:
-                  _selectedDay == null
-                      ? null
-                      : Plan(
-                        id: '',
-                        title: '',
-                        startTime: DateTime(
-                          _selectedDay!.year,
-                          _selectedDay!.month,
-                          _selectedDay!.day,
-                          DateTime.now().hour,
-                          (DateTime.now().minute ~/ 15) * 15,
-                        ),
-                        endTime: DateTime(
-                          _selectedDay!.year,
-                          _selectedDay!.month,
-                          _selectedDay!.day,
-                          DateTime.now().hour + 1,
-                          (DateTime.now().minute ~/ 15) * 15,
-                        ),
-                      ),
-            ),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const CreatePlanScreen()));
   }
 
   @override

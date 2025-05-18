@@ -115,9 +115,11 @@ class PlanProvider with ChangeNotifier {
       }
 
       // Check if plan is overdue
-      if (plan.endTime.isBefore(now)) {
+      if (plan.endTime.isBefore(now) && plan.status != PlanStatus.completed) {
         _plans[i] = plan.copyWith(status: PlanStatus.overdue);
-      } else if (plan.startTime.isBefore(now) && plan.endTime.isAfter(now)) {
+      } else if (plan.startTime.isBefore(now) &&
+          plan.endTime.isAfter(now) &&
+          plan.status == PlanStatus.upcoming) {
         _plans[i] = plan.copyWith(status: PlanStatus.inProgress);
       }
     }
@@ -248,23 +250,113 @@ class PlanProvider with ChangeNotifier {
         _plans.addAll(fetchedPlans); // Thêm dữ liệu mới từ API
 
         print('[PlanProvider] Successfully fetched ${_plans.length} tasks.');
-        _updatePlanStatuses(); // Cập nhật trạng thái sau khi fetch
+
+        // Cập nhật trạng thái local sau khi fetch
+        _updatePlanStatuses();
+
+        notifyListeners();
       } else {
         print(
           '[PlanProvider] Failed to fetch tasks: ${response.statusCode} ${response.body}',
         );
-        // Có thể hiển thị thông báo lỗi trên UI nếu cần
-        _plans.clear(); // Xóa danh sách nếu fetch thất bại
+        // Có thể xóa danh sách cũ hoặc giữ lại tùy chiến lược
+        // _plans.clear();
       }
     } catch (e, stackTrace) {
-      print('[PlanProvider] Exception fetching tasks: ${e.toString()}');
-      print('[PlanProvider] StackTrace: ${stackTrace.toString()}');
-      // Có thể hiển thị thông báo lỗi trên UI nếu cần
-      _plans.clear(); // Xóa danh sách nếu có lỗi
+      print('[PlanProvider] Error fetching plans (overall try-catch): $e');
+      print('[PlanProvider] StackTrace: $stackTrace');
+      // Có thể xóa danh sách cũ hoặc giữ lại tùy chiến lược
+      // _plans.clear();
     } finally {
-      // Tắt loading state nếu có
-      // _isLoading = false;
-      notifyListeners(); // Thông báo cho listener dù thành công hay thất bại để cập nhật UI (ví dụ: ẩn loading)
+      // Nếu có loading state
+      // _isLoading = false; notifyListeners();
+    }
+  }
+
+  // Method to update a task via PATCH API
+  Future<bool> updateTask(
+    String taskId,
+    Map<String, dynamic> updates,
+    UserProvider userProvider,
+  ) async {
+    print('[PlanProvider] updateTask called for Task ID: $taskId');
+
+    if (userProvider.currentUser == null) {
+      print('[PlanProvider] updateTask: User not logged in. Aborting update.');
+      return false;
+    }
+
+    try {
+      final url = Uri.parse('${userProvider.baseUrl}/api/Task/$taskId');
+      print('[PlanProvider] Attempting to update task at URL: $url');
+      print('[PlanProvider] Sending headers: ${userProvider.headers}');
+      print('[PlanProvider] Sending body: ${jsonEncode(updates)}');
+
+      final response = await http.patch(
+        url,
+        headers: userProvider.headers,
+        body: jsonEncode(updates),
+      );
+
+      print('[PlanProvider] Update Task Status Code: ${response.statusCode}');
+      print('[PlanProvider] Update Task Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // 200 OK or 204 No Content
+        print('[PlanProvider] Task updated successfully via API.');
+        // Sau khi cập nhật thành công trên backend, fetch lại danh sách task để đảm bảo đồng bộ
+        await fetchPlans(userProvider);
+        return true;
+      } else {
+        print(
+          '[PlanProvider] Failed to update task: ${response.statusCode} ${response.body}',
+        );
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('[PlanProvider] Error updating task via API (in catch block): $e');
+      print('[PlanProvider] StackTrace: $stackTrace');
+      return false;
+    }
+  }
+
+  // Method to delete a task via DELETE API
+  Future<bool> deleteTaskApi(String taskId, UserProvider userProvider) async {
+    print('[PlanProvider] deleteTaskApi called for Task ID: $taskId');
+
+    if (userProvider.currentUser == null) {
+      print(
+        '[PlanProvider] deleteTaskApi: User not logged in. Aborting deletion.',
+      );
+      return false;
+    }
+
+    try {
+      final url = Uri.parse('${userProvider.baseUrl}/api/Task/$taskId');
+      print('[PlanProvider] Attempting to delete task at URL: $url');
+      print('[PlanProvider] Sending headers: ${userProvider.headers}');
+
+      final response = await http.delete(url, headers: userProvider.headers);
+
+      print('[PlanProvider] Delete Task Status Code: ${response.statusCode}');
+      print('[PlanProvider] Delete Task Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // 200 OK or 204 No Content
+        print('[PlanProvider] Task deleted successfully via API.');
+        // Sau khi xóa thành công trên backend, fetch lại danh sách task để đảm bảo đồng bộ
+        await fetchPlans(userProvider);
+        return true;
+      } else {
+        print(
+          '[PlanProvider] Failed to delete task: ${response.statusCode} ${response.body}',
+        );
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('[PlanProvider] Error deleting task via API (in catch block): $e');
+      print('[PlanProvider] StackTrace: $stackTrace');
+      return false;
     }
   }
 }

@@ -53,38 +53,66 @@ class Plan {
 
   // Lấy màu tương ứng với trạng thái
   Color getStatusColor() {
-    if (isCompleted) {
+    final now = DateTime.now();
+
+    // Ưu tiên hiển thị 'Completed' nếu status từ backend là completed
+    if (status == PlanStatus.completed) {
       return Colors.green;
     }
 
-    switch (status) {
-      case PlanStatus.upcoming:
-        return Colors.blue;
-      case PlanStatus.inProgress:
-        return Colors.amber;
-      case PlanStatus.completed:
-        return Colors.green;
-      case PlanStatus.overdue:
-        return Colors.red;
+    // Kiểm tra trạng thái dựa trên thời gian thực nếu chưa hoàn thành
+    if (endTime.isBefore(now)) {
+      return Colors.red; // Overdue
+    } else if (startTime.isBefore(now) || startTime.isAtSameMomentAs(now)) {
+      // Nếu timestart đã đến hoặc đang diễn ra và chưa quá hạn
+      return Colors.amber; // InProgress
+    } else {
+      // If startTime is in the future
+      return Colors.blue; // Upcoming
     }
+    // Fallback to status from backend if needed (shouldn't be reached with above logic)
+    // switch (status) {
+    //   case PlanStatus.upcoming:
+    //     return Colors.blue;
+    //   case PlanStatus.inProgress:
+    //     return Colors.amber;
+    //   case PlanStatus.completed:
+    //     return Colors.green;
+    //   case PlanStatus.overdue:
+    //     return Colors.red;
+    // }
   }
 
   // Lấy chuỗi văn bản mô tả trạng thái
   String getStatusText() {
-    if (isCompleted) {
+    final now = DateTime.now();
+
+    // Ưu tiên hiển thị 'Hoàn thành' nếu status từ backend là completed
+    if (status == PlanStatus.completed) {
       return 'Hoàn thành';
     }
 
-    switch (status) {
-      case PlanStatus.upcoming:
-        return 'Sắp tới';
-      case PlanStatus.inProgress:
-        return 'Đang diễn ra';
-      case PlanStatus.completed:
-        return 'Hoàn thành';
-      case PlanStatus.overdue:
-        return 'Quá hạn';
+    // Kiểm tra trạng thái dựa trên thời gian thực nếu chưa hoàn thành
+    if (endTime.isBefore(now)) {
+      return 'Quá hạn'; // Overdue
+    } else if (startTime.isBefore(now) || startTime.isAtSameMomentAs(now)) {
+      // Nếu timestart đã đến hoặc đang diễn ra và chưa quá hạn
+      return 'Đang diễn ra'; // InProgress
+    } else {
+      // If startTime is in the future
+      return 'Sắp tới'; // Upcoming
     }
+    // Fallback to status from backend if needed (shouldn't be reached with above logic)
+    // switch (status) {
+    //   case PlanStatus.upcoming:
+    //     return 'Sắp tới';
+    //   case PlanStatus.inProgress:
+    //     return 'Đang diễn ra';
+    //   case PlanStatus.completed:
+    //     return 'Hoàn thành';
+    //   case PlanStatus.overdue:
+    //     return 'Quá hạn';
+    // }
   }
 
   // Tạo bản sao với một số thuộc tính được cập nhật

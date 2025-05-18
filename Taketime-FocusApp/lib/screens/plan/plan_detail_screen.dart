@@ -4,6 +4,7 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../providers/user_provider.dart';
 
 import '../../models/plan_model.dart';
 import '../../providers/plan_provider.dart';
@@ -21,65 +22,76 @@ class PlanDetailScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final planProvider = Provider.of<PlanProvider>(context);
-    
+
     // Format dates and times
     final dateFormatter = DateFormat.yMMMMd();
     final timeFormatter = DateFormat.Hm();
     final dateString = dateFormatter.format(plan.startTime);
-    final timeRangeString = '${timeFormatter.format(plan.startTime)} - ${timeFormatter.format(plan.endTime)}';
-    
+    final timeRangeString =
+        '${timeFormatter.format(plan.startTime)} - ${timeFormatter.format(plan.endTime)}';
+
     // Calculate duration
     final duration = plan.endTime.difference(plan.startTime);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
-    final durationText = '${hours > 0 ? '$hours giờ ' : ''}${minutes > 0 ? '$minutes phút' : ''}';
-    
+    final durationText =
+        '${hours > 0 ? '$hours giờ ' : ''}${minutes > 0 ? '$minutes phút' : ''}';
+
     void confirmDelete() {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(
-            'Xóa kế hoạch',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            'Bạn có chắc chắn muốn xóa kế hoạch này?',
-            style: GoogleFonts.poppins(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Hủy',
+        builder:
+            (context) => AlertDialog(
+              title: Text(
+                'Xóa kế hoạch',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+              ),
+              content: Text(
+                'Bạn có chắc chắn muốn xóa kế hoạch này?',
                 style: GoogleFonts.poppins(),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                planProvider.deletePlan(plan.id);
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Return to plan screen
-                
-                // Hiển thị thông báo ở phía trên thay vì Snackbar
-                TopNotification.show(
-                  context,
-                  message: 'Đã xóa kế hoạch',
-                  backgroundColor: Colors.red,
-                  icon: Icons.delete,
-                );
-              },
-              child: Text(
-                'Xóa',
-                style: GoogleFonts.poppins(
-                  color: Colors.red,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Hủy', style: GoogleFonts.poppins()),
                 ),
-              ),
+                TextButton(
+                  onPressed: () async {
+                    bool success = await Provider.of<PlanProvider>(
+                      context,
+                      listen: false,
+                    ).deleteTaskApi(plan.id, context.read<UserProvider>());
+
+                    if (success) {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop();
+
+                      TopNotification.show(
+                        context,
+                        message: 'Đã xóa kế hoạch',
+                        backgroundColor: Colors.red,
+                        icon: Icons.delete,
+                      );
+                    } else {
+                      Navigator.of(context).pop();
+                      TopNotification.show(
+                        context,
+                        message: 'Lỗi khi xóa kế hoạch.',
+                        backgroundColor: Colors.red,
+                        icon: Icons.error,
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Xóa',
+                    style: GoogleFonts.poppins(color: Colors.red),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
       );
     }
-    
+
     void editPlan() {
       Navigator.pushReplacement(
         context,
@@ -99,23 +111,50 @@ class PlanDetailScreen extends StatelessWidget {
         }
       });
     }
-    
-    void toggleCompletionStatus() {
-      final updatedPlan = plan.copyWith(
-        isCompleted: !plan.isCompleted,
-      );
-      planProvider.updatePlan(plan.id, updatedPlan);
-      
-      // Hiển thị thông báo ở phía trên thay vì Snackbar
-      TopNotification.show(
+
+    void toggleCompletionStatus() async {
+      // Determine the new status
+      final newStatus =
+          plan.isCompleted ? PlanStatus.inProgress : PlanStatus.completed;
+
+      // Prepare the update data
+      final Map<String, dynamic> updates = {
+        'status': newStatus.toString().split('.').last,
+      };
+
+      // Get UserProvider instance
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // Call the API method to update the task status
+      bool success = await Provider.of<PlanProvider>(
         context,
-        message: plan.isCompleted ? 'Đã đánh dấu chưa hoàn thành' : 'Đã đánh dấu hoàn thành',
-        backgroundColor: plan.isCompleted ? Colors.orange : Colors.green,
-        icon: plan.isCompleted ? Icons.replay : Icons.check_circle,
-      );
-      
-      // Return to previous screen
-      Navigator.pop(context);
+        listen: false,
+      ).updateTask(plan.id, updates, userProvider);
+
+      if (success) {
+        // Show success notification
+        TopNotification.show(
+          context,
+          message:
+              newStatus == PlanStatus.completed
+                  ? 'Đã đánh dấu hoàn thành'
+                  : 'Đã đánh dấu chưa hoàn thành',
+          backgroundColor:
+              newStatus == PlanStatus.completed ? Colors.green : Colors.orange,
+          icon:
+              newStatus == PlanStatus.completed
+                  ? Icons.check_circle
+                  : Icons.replay,
+        );
+      } else {
+        // Show error notification if update failed
+        TopNotification.show(
+          context,
+          message: 'Lỗi khi cập nhật trạng thái kế hoạch.',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+        );
+      }
     }
 
     return GradientBackground(
@@ -140,10 +179,7 @@ class PlanDetailScreen extends StatelessWidget {
               onPressed: editPlan,
             ),
             IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                color: Colors.red.shade300,
-              ),
+              icon: Icon(Icons.delete_outline, color: Colors.red.shade300),
               onPressed: confirmDelete,
             ),
           ],
@@ -177,7 +213,9 @@ class PlanDetailScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        plan.isCompleted ? Icons.check_circle : Icons.pending_actions,
+                        plan.isCompleted
+                            ? Icons.check_circle
+                            : Icons.pending_actions,
                         color: plan.getStatusColor(),
                         size: 24,
                       ),
@@ -194,9 +232,9 @@ class PlanDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Title
               FadeInDown(
                 duration: const Duration(milliseconds: 500),
@@ -210,28 +248,30 @@ class PlanDetailScreen extends StatelessWidget {
                   linearGradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: isDark
-                        ? [
-                            Colors.white.withOpacity(0.1),
-                            Colors.white.withOpacity(0.05),
-                          ]
-                        : [
-                            Colors.white.withOpacity(0.7),
-                            Colors.white.withOpacity(0.4),
-                          ],
+                    colors:
+                        isDark
+                            ? [
+                              Colors.white.withOpacity(0.1),
+                              Colors.white.withOpacity(0.05),
+                            ]
+                            : [
+                              Colors.white.withOpacity(0.7),
+                              Colors.white.withOpacity(0.4),
+                            ],
                   ),
                   borderGradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: isDark
-                        ? [
-                            Colors.white.withOpacity(0.15),
-                            Colors.white.withOpacity(0.05),
-                          ]
-                        : [
-                            Colors.white.withOpacity(0.5),
-                            Colors.white.withOpacity(0.2),
-                          ],
+                    colors:
+                        isDark
+                            ? [
+                              Colors.white.withOpacity(0.15),
+                              Colors.white.withOpacity(0.05),
+                            ]
+                            : [
+                              Colors.white.withOpacity(0.5),
+                              Colors.white.withOpacity(0.2),
+                            ],
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -260,9 +300,9 @@ class PlanDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Time and date
               Row(
                 children: [
@@ -295,9 +335,9 @@ class PlanDetailScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Time range
               FadeInDown(
                 duration: const Duration(milliseconds: 700),
@@ -309,9 +349,9 @@ class PlanDetailScreen extends StatelessWidget {
                   iconColor: Colors.blue,
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Priority
               FadeInDown(
                 duration: const Duration(milliseconds: 800),
@@ -323,7 +363,7 @@ class PlanDetailScreen extends StatelessWidget {
                   iconColor: plan.getPriorityColor(),
                 ),
               ),
-              
+
               // Notes
               if (plan.note.isNotEmpty) ...[
                 const SizedBox(height: 20),
@@ -331,7 +371,10 @@ class PlanDetailScreen extends StatelessWidget {
                   duration: const Duration(milliseconds: 900),
                   child: GlassmorphicContainer(
                     width: double.infinity,
-                    height: plan.note.length > 100 ? 200.0 : 150.0, // Fixed height with explicit double values
+                    height:
+                        plan.note.length > 100
+                            ? 200.0
+                            : 150.0, // Fixed height with explicit double values
                     borderRadius: 20,
                     blur: 20,
                     alignment: Alignment.center,
@@ -339,28 +382,30 @@ class PlanDetailScreen extends StatelessWidget {
                     linearGradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: isDark
-                          ? [
-                              Colors.white.withOpacity(0.1),
-                              Colors.white.withOpacity(0.05),
-                            ]
-                          : [
-                              Colors.white.withOpacity(0.7),
-                              Colors.white.withOpacity(0.4),
-                            ],
+                      colors:
+                          isDark
+                              ? [
+                                Colors.white.withOpacity(0.1),
+                                Colors.white.withOpacity(0.05),
+                              ]
+                              : [
+                                Colors.white.withOpacity(0.7),
+                                Colors.white.withOpacity(0.4),
+                              ],
                     ),
                     borderGradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: isDark
-                          ? [
-                              Colors.white.withOpacity(0.15),
-                              Colors.white.withOpacity(0.05),
-                            ]
-                          : [
-                              Colors.white.withOpacity(0.5),
-                              Colors.white.withOpacity(0.2),
-                            ],
+                      colors:
+                          isDark
+                              ? [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ]
+                              : [
+                                Colors.white.withOpacity(0.5),
+                                Colors.white.withOpacity(0.2),
+                              ],
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -399,26 +444,34 @@ class PlanDetailScreen extends StatelessWidget {
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 40),
-              
+
               // Action Button
               FadeInUp(
                 duration: const Duration(milliseconds: 1000),
                 child: Center(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: plan.isCompleted ? Colors.orange : Colors.green,
+                      backgroundColor:
+                          plan.isCompleted ? Colors.orange : Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 16,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
                     onPressed: toggleCompletionStatus,
-                    icon: Icon(plan.isCompleted ? Icons.replay : Icons.check_circle),
+                    icon: Icon(
+                      plan.isCompleted ? Icons.replay : Icons.check_circle,
+                    ),
                     label: Text(
-                      plan.isCompleted ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành',
+                      plan.isCompleted
+                          ? 'Đánh dấu chưa hoàn thành'
+                          : 'Đánh dấu hoàn thành',
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w500,
                         fontSize: 16,
@@ -427,7 +480,7 @@ class PlanDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),
@@ -435,7 +488,7 @@ class PlanDetailScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   String _getPriorityText(PlanPriority priority) {
     switch (priority) {
       case PlanPriority.low:
@@ -446,7 +499,7 @@ class PlanDetailScreen extends StatelessWidget {
         return 'Cao';
     }
   }
-  
+
   Widget _buildInfoCard(
     BuildContext context, {
     required String title,
@@ -456,7 +509,7 @@ class PlanDetailScreen extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return GlassmorphicContainer(
       width: double.infinity,
       height: 85,
@@ -467,28 +520,30 @@ class PlanDetailScreen extends StatelessWidget {
       linearGradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: isDark
-            ? [
-                Colors.white.withOpacity(0.1),
-                Colors.white.withOpacity(0.05),
-              ]
-            : [
-                Colors.white.withOpacity(0.7),
-                Colors.white.withOpacity(0.4),
-              ],
+        colors:
+            isDark
+                ? [
+                  Colors.white.withOpacity(0.1),
+                  Colors.white.withOpacity(0.05),
+                ]
+                : [
+                  Colors.white.withOpacity(0.7),
+                  Colors.white.withOpacity(0.4),
+                ],
       ),
       borderGradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: isDark
-            ? [
-                Colors.white.withOpacity(0.15),
-                Colors.white.withOpacity(0.05),
-              ]
-            : [
-                Colors.white.withOpacity(0.5),
-                Colors.white.withOpacity(0.2),
-              ],
+        colors:
+            isDark
+                ? [
+                  Colors.white.withOpacity(0.15),
+                  Colors.white.withOpacity(0.05),
+                ]
+                : [
+                  Colors.white.withOpacity(0.5),
+                  Colors.white.withOpacity(0.2),
+                ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -501,13 +556,7 @@ class PlanDetailScreen extends StatelessWidget {
                 color: iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: iconColor,
-                ),
-              ),
+              child: Center(child: Icon(icon, size: 20, color: iconColor)),
             ),
             const SizedBox(width: 16),
             Expanded(
