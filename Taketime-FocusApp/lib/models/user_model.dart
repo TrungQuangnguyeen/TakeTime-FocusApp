@@ -4,7 +4,8 @@ class UserModel {
   final String email;
   String? avatarUrl;
   String? friendshipId; // Added for storing friendship ID when user is a friend
-  String? friendshipStatus; // Added for storing friendship status from search results
+  final String?
+  friendshipStatus; // Added for storing friendship status from search results
 
   UserModel({
     required this.id,
@@ -44,41 +45,68 @@ class UserModel {
       return null;
     }
 
-    final String parsedId = getString(['user_id', 'id', 'userId']) ?? ''; // Fallback to empty string if all null, but ID should be present
-    final String parsedUsername = getString(['full_name', 'username', 'name']) ?? ''; // Fallback
+    final String parsedId =
+        getString(['user_id', 'id', 'userId']) ??
+        ''; // Fallback to empty string if all null, but ID should be present
+    final String parsedUsername =
+        getString(['full_name', 'username', 'name']) ?? ''; // Fallback
     final String parsedEmail = getString(['email']) ?? ''; // Fallback
-    final String? parsedAvatarUrl = getString(['avatar_url', 'avatarUrl', 'picture']);
-    final String? parsedFriendshipId = getString(['friendship_id', 'friendshipId']);
-    final String? parsedFriendshipStatus = getString(['friendshipStatus', 'friendship_status']); // Added
+    final String? parsedAvatarUrl = getString([
+      'avatar_url',
+      'avatarUrl',
+      'picture',
+    ]);
+    final String? parsedFriendshipId = getString([
+      'friendship_id',
+      'friendshipId',
+    ]);
+    final String? parsedFriendshipStatus = getString([
+      'friendshipStatus',
+      'friendship_status',
+    ]); // Added
 
     // ignore: avoid_print
     print("[UserModel.fromJson] Parsing JSON: $json");
     // ignore: avoid_print
-    print("[UserModel.fromJson] -> Extracted id: '$parsedId' (from user_id, id, userId)");
+    print(
+      "[UserModel.fromJson] -> Extracted id: '$parsedId' (from user_id, id, userId)",
+    );
     // ignore: avoid_print
-    print("[UserModel.fromJson] -> Extracted username: '$parsedUsername' (from full_name, username, name)");
+    print(
+      "[UserModel.fromJson] -> Extracted username: '$parsedUsername' (from full_name, username, name)",
+    );
     // ignore: avoid_print
     print("[UserModel.fromJson] -> Extracted email: '$parsedEmail'");
     // ignore: avoid_print
     print("[UserModel.fromJson] -> Extracted avatarUrl: '$parsedAvatarUrl'");
     // ignore: avoid_print
-    print("[UserModel.fromJson] -> Extracted friendshipId: '$parsedFriendshipId'");
+    print(
+      "[UserModel.fromJson] -> Extracted friendshipId: '$parsedFriendshipId'",
+    );
     // ignore: avoid_print
-    print("[UserModel.fromJson] -> Extracted friendshipStatus: '$parsedFriendshipStatus'"); // Added
+    print(
+      "[UserModel.fromJson] -> Extracted friendshipStatus: '$parsedFriendshipStatus'",
+    ); // Added
 
     if (parsedId.isEmpty) {
       // ignore: avoid_print
-      print("[UserModel.fromJson] CRITICAL ERROR: User ID is empty after parsing. Original JSON: $json");
+      print(
+        "[UserModel.fromJson] CRITICAL ERROR: User ID is empty after parsing. Original JSON: $json",
+      );
       // Depending on how strict you want to be, you could throw an exception
       // throw Exception("User ID is missing or null in UserModel.fromJson");
     }
     if (parsedUsername.isEmpty) {
       // ignore: avoid_print
-      print("[UserModel.fromJson] WARNING: Username is empty after parsing. Original JSON: $json");
+      print(
+        "[UserModel.fromJson] WARNING: Username is empty after parsing. Original JSON: $json",
+      );
     }
     if (parsedEmail.isEmpty) {
       // ignore: avoid_print
-      print("[UserModel.fromJson] WARNING: Email is empty after parsing. Original JSON: $json");
+      print(
+        "[UserModel.fromJson] WARNING: Email is empty after parsing. Original JSON: $json",
+      );
     }
 
     return UserModel(
@@ -96,11 +124,12 @@ class UserModel {
       'id': id,
       // It's good practice to decide on one casing for sending data if the backend has a preference
       // For now, using a common one, but align with backend if needed for POST/PUT.
-      'fullName': username, 
+      'fullName': username,
       'email': email,
       'avatar_url': avatarUrl,
       'friendshipId': friendshipId,
-      'friendshipStatus': friendshipStatus, // Added (though primarily for client-side use from search)
+      'friendshipStatus':
+          friendshipStatus, // Added (though primarily for client-side use from search)
     };
   }
 }

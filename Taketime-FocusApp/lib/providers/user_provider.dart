@@ -28,6 +28,8 @@ class UserProvider with ChangeNotifier {
       _acceptedFriendships; // Getter for accepted friendships
   bool get isLoading => _isLoading;
   List<UserModel> get searchedUsers => _searchedUsers;
+  String get baseUrl => _baseUrl;
+  Map<String, String> get headers => _headers;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json; charset=UTF-8',
@@ -56,22 +58,22 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> fetchCurrentUser() async {
-    print('[UserProvider] fetchCurrentUser called.'); // Added log
+    print('[UserProvider] fetchCurrentUser called.');
     if (_accessToken == null) {
       print(
         '[UserProvider] fetchCurrentUser: _accessToken is null, returning.',
-      ); // Added log
+      );
       return;
     }
     print(
-      '[UserProvider] Current Access Token being used for /api/User/me: $_accessToken',
+      '[UserProvider] Current Access Token being used for /api/users/profile: \\$_accessToken',
     );
 
     _isLoading = true;
     notifyListeners();
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/User/me'),
+        Uri.parse('$_baseUrl/api/users/profile'),
         headers: _headers,
       );
       if (response.statusCode == 200) {
@@ -80,12 +82,12 @@ class UserProvider with ChangeNotifier {
         );
       } else {
         print(
-          'Failed to fetch current user: ${response.statusCode} ${response.body}',
+          'Failed to fetch current user: \\${response.statusCode} \\${response.body}',
         );
         _currentUser = null;
       }
     } catch (e) {
-      print('Error fetching current user: $e');
+      print('Error fetching current user: \\${e.toString()}');
       _currentUser = null;
     } finally {
       _isLoading = false;
@@ -176,6 +178,8 @@ class UserProvider with ChangeNotifier {
 
     List<FriendRequest> successfullyParsedRequests =
         []; // Temporary list for successfully parsed items
+    int previousIncomingCount =
+        _incomingFriendRequests.length; // Track previous count
 
     try {
       final response = await http.get(
@@ -204,25 +208,22 @@ class UserProvider with ChangeNotifier {
           }
         }
 
-        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
         _incomingFriendRequests =
             successfullyParsedRequests
                 .where(
                   (FriendRequest req) =>
                       req.receiverId == _currentUser!.id &&
-                      req.status == 'Pending',
+                      req.status.toLowerCase() == 'pending',
                 )
                 .toList();
-        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
         _outgoingFriendRequests =
             successfullyParsedRequests
                 .where(
                   (FriendRequest req) =>
                       req.requesterId == _currentUser!.id &&
-                      req.status == 'Pending',
+                      req.status.toLowerCase() == 'pending',
                 )
                 .toList();
-        // PLEASE REPLACE 'status' WITH THE CORRECT FIELD NAME FROM YOUR FriendRequestModel
         _acceptedFriendships =
             successfullyParsedRequests
                 .where(
@@ -232,15 +233,12 @@ class UserProvider with ChangeNotifier {
                           req.receiverId == _currentUser!.id),
                 )
                 .toList();
-        print(
-          '[UserProvider] Populated _incomingFriendRequests: ${_incomingFriendRequests.length} requests.',
-        );
-        print(
-          '[UserProvider] Populated _outgoingFriendRequests: ${_outgoingFriendRequests.length} requests.',
-        );
-        print(
-          '[UserProvider] Populated _acceptedFriendships: ${_acceptedFriendships.length} friendships.',
-        );
+
+        // Check if there are new incoming requests
+        if (_incomingFriendRequests.length > previousIncomingCount) {
+          // Notify listeners that there are new friend requests
+          notifyListeners();
+        }
       } else {
         print(
           '[UserProvider] Failed to fetch friend requests: ${response.statusCode} ${response.body}',
@@ -388,19 +386,15 @@ class UserProvider with ChangeNotifier {
         Uri.parse('$_baseUrl/api/FriendShip/send'),
         headers: _headers,
         body: jsonEncode(<String, String>{
-          // 'requesterId': _currentUser!.id, // Requester ID is usually inferred from the auth token
+          'requesterId': _currentUser!.id,
           'receiverId': receiverUserId,
         }),
       );
+      print('SendFriendRequest status: ${response.statusCode}');
+      print('SendFriendRequest body: ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // final newRequest = FriendRequest.fromJson(jsonDecode(response.body));
-        // _outgoingFriendRequests.add(newRequest); // Handled by refetch
-        await fetchFriendRequests(); // Refresh requests
+        await fetchFriendRequests();
         success = true;
-      } else {
-        print(
-          'Failed to send friend request: ${response.statusCode} ${response.body}',
-        );
       }
     } catch (e) {
       print('Error sending friend request: $e');
@@ -422,7 +416,7 @@ class UserProvider with ChangeNotifier {
         headers: _headers,
         // body: jsonEncode({}), // Empty body if API expects it or no body
       );
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 204) {
         await fetchFriends();
         await fetchFriendRequests();
         success = true;

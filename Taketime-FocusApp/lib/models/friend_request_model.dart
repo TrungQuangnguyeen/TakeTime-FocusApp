@@ -3,20 +3,29 @@ class FriendRequest {
   final String requesterId;
   final String receiverId;
   final String status;
+  final String? requesterName;
+  final String? requesterEmail;
+  final DateTime requestedAt;
 
   FriendRequest({
     required this.friendshipId,
     required this.requesterId,
     required this.receiverId,
     required this.status,
+    this.requesterName,
+    this.requesterEmail,
+    required this.requestedAt,
   });
 
   factory FriendRequest.fromJson(Map<String, dynamic> json) {
     return FriendRequest(
-      friendshipId: json['friendship_id'] as String? ?? json['friendshipId'] as String, // Handles both snake_case and camelCase
-      requesterId: json['requester_id'] as String? ?? json['requesterId'] as String, // Handles both snake_case and camelCase
-      receiverId: json['receiver_id'] as String? ?? json['receiverId'] as String, // Handles both snake_case and camelCase
-      status: json['relationship_status'] as String? ?? json['status'] as String, // Handles both snake_case (from DB) and camelCase
+      friendshipId: json['friendship_id'] ?? json['friendshipId'],
+      requesterId: json['requester_id'] ?? json['requesterId'],
+      receiverId: json['receiver_id'] ?? json['receiverId'],
+      status: json['relationship_status'] ?? json['status'],
+      requesterName: json['requesterName'],
+      requesterEmail: json['requesterEmail'],
+      requestedAt: DateTime.parse(json['requested_at']),
     );
   }
 
@@ -26,6 +35,9 @@ class FriendRequest {
       'requesterId': requesterId,
       'receiverId': receiverId,
       'status': status,
+      'requesterName': requesterName,
+      'requesterEmail': requesterEmail,
+      'requestedAt': requestedAt.toIso8601String(),
     };
   }
 }
