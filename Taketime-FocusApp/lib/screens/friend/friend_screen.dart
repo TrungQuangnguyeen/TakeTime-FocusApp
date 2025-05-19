@@ -69,6 +69,14 @@ class _FriendScreenState extends State<FriendScreen>
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              userProvider.fetchFriends();
+              userProvider.fetchFriendRequests();
+            },
+            tooltip: 'Làm mới',
+          ),
+          IconButton(
             icon: const Icon(Icons.person_add_alt_1),
             onPressed: () {
               Navigator.push(

@@ -9,6 +9,7 @@ import '../../providers/plan_provider.dart';
 import '../../widgets/gradient_background.dart';
 import 'create_plan_screen.dart';
 import 'plan_detail_screen.dart';
+import '../../providers/user_provider.dart';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -17,15 +18,37 @@ class PlanScreen extends StatefulWidget {
   State<PlanScreen> createState() => _PlanScreenState();
 }
 
-class _PlanScreenState extends State<PlanScreen> {
-  table_calendar.CalendarFormat _calendarFormat = table_calendar.CalendarFormat.week;
+class _PlanScreenState extends State<PlanScreen>
+    with SingleTickerProviderStateMixin {
+  table_calendar.CalendarFormat _calendarFormat =
+      table_calendar.CalendarFormat.week;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userProvider = Provider.of<UserProvider>(context);
+    final planProvider = Provider.of<PlanProvider>(context, listen: false);
+
+    if (userProvider.currentUser != null) {
+      print('[PlanScreen] User logged in, fetching plans...');
+      planProvider.fetchPlans(userProvider);
+    } else {
+      if (planProvider.plans.isNotEmpty) {
+        print('[PlanScreen] User not logged in, clearing plans.');
+        planProvider.plans.clear();
+        planProvider.notifyListeners();
+      }
+    }
   }
 
   @override
@@ -51,16 +74,17 @@ class _PlanScreenState extends State<PlanScreen> {
           actions: [
             IconButton(
               icon: Icon(
-                _calendarFormat == table_calendar.CalendarFormat.month 
-                  ? Icons.calendar_view_week 
-                  : Icons.calendar_view_month,
+                _calendarFormat == table_calendar.CalendarFormat.month
+                    ? Icons.calendar_view_week
+                    : Icons.calendar_view_month,
                 color: isDark ? Colors.white : Colors.black87,
               ),
               onPressed: () {
                 setState(() {
-                  _calendarFormat = _calendarFormat == table_calendar.CalendarFormat.month
-                      ? table_calendar.CalendarFormat.week
-                      : table_calendar.CalendarFormat.month;
+                  _calendarFormat =
+                      _calendarFormat == table_calendar.CalendarFormat.month
+                          ? table_calendar.CalendarFormat.week
+                          : table_calendar.CalendarFormat.month;
                 });
               },
             ),
@@ -73,20 +97,26 @@ class _PlanScreenState extends State<PlanScreen> {
               duration: const Duration(milliseconds: 500),
               child: _buildCalendar(isDark, theme),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Selected Date Header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Row(
                 children: [
                   FadeInLeft(
                     duration: const Duration(milliseconds: 600),
                     child: Text(
-                      _selectedDay == null 
+                      _selectedDay == null
                           ? 'Hôm nay'
-                          : DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(_selectedDay!),
+                          : DateFormat(
+                            'EEEE, dd/MM/yyyy',
+                            'vi_VN',
+                          ).format(_selectedDay!),
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -97,15 +127,17 @@ class _PlanScreenState extends State<PlanScreen> {
                 ],
               ),
             ),
-            
+
             // Plans List
             Expanded(
               child: Consumer<PlanProvider>(
                 builder: (context, planProvider, child) {
                   if (_selectedDay == null) return const SizedBox();
-                  
-                  final selectedPlans = planProvider.getPlansForDate(_selectedDay!);
-                  
+
+                  final selectedPlans = planProvider.getPlansForDate(
+                    _selectedDay!,
+                  );
+
                   if (selectedPlans.isEmpty) {
                     return FadeInUp(
                       duration: const Duration(milliseconds: 800),
@@ -132,7 +164,10 @@ class _PlanScreenState extends State<PlanScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: theme.colorScheme.primary,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
                                 ),
@@ -148,7 +183,7 @@ class _PlanScreenState extends State<PlanScreen> {
                       ),
                     );
                   }
-                  
+
                   return FadeInUp(
                     duration: const Duration(milliseconds: 800),
                     child: ListView.builder(
@@ -157,7 +192,7 @@ class _PlanScreenState extends State<PlanScreen> {
                       itemBuilder: (context, index) {
                         final plan = selectedPlans[index];
                         final delay = 800 + (index * 100);
-                        
+
                         return FadeInUp(
                           duration: Duration(milliseconds: delay),
                           child: _buildPlanCard(context, plan, isDark),
@@ -174,30 +209,27 @@ class _PlanScreenState extends State<PlanScreen> {
           onPressed: () {
             // Điều hướng trực tiếp đến trang CreatePlanScreen mà không có tham số
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const CreatePlanScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const CreatePlanScreen()),
             );
           },
           backgroundColor: Colors.deepPurpleAccent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(
-            Icons.add,
-            color: Colors.white,
-            size: 28,
-          ),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
         ),
       ),
     );
   }
-  
+
   Widget _buildCalendar(bool isDark, ThemeData theme) {
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       elevation: 4,
-      color: isDark ? Colors.grey.shade900.withOpacity(0.7) : Colors.white.withOpacity(0.9),
+      color:
+          isDark
+              ? Colors.grey.shade900.withOpacity(0.7)
+              : Colors.white.withOpacity(0.9),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: table_calendar.TableCalendar(
         firstDay: DateTime.utc(2020, 1, 1),
@@ -242,9 +274,7 @@ class _PlanScreenState extends State<PlanScreen> {
           weekendTextStyle: GoogleFonts.poppins(
             color: Colors.red.withOpacity(0.7),
           ),
-          outsideTextStyle: GoogleFonts.poppins(
-            color: Colors.grey,
-          ),
+          outsideTextStyle: GoogleFonts.poppins(color: Colors.grey),
           defaultTextStyle: GoogleFonts.poppins(),
         ),
         headerStyle: table_calendar.HeaderStyle(
@@ -273,9 +303,13 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: day.weekday == DateTime.sunday || day.weekday == DateTime.saturday
-                      ? Colors.red.withOpacity(0.7)
-                      : isDark ? Colors.white70 : Colors.black87,
+                  color:
+                      day.weekday == DateTime.sunday ||
+                              day.weekday == DateTime.saturday
+                          ? Colors.red.withOpacity(0.7)
+                          : isDark
+                          ? Colors.white70
+                          : Colors.black87,
                 ),
               ),
             );
@@ -306,13 +340,14 @@ class _PlanScreenState extends State<PlanScreen> {
     final startTime = DateFormat.Hm().format(plan.startTime);
     final endTime = DateFormat.Hm().format(plan.endTime);
     final priorityColor = plan.getPriorityColor();
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      color: isDark 
-          ? Colors.grey.shade900.withOpacity(0.8) 
-          : Colors.white.withOpacity(0.9),
+      color:
+          isDark
+              ? Colors.grey.shade900.withOpacity(0.8)
+              : Colors.white.withOpacity(0.9),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
@@ -350,16 +385,20 @@ class _PlanScreenState extends State<PlanScreen> {
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: isDark ? Colors.white : Colors.black87,
-                              decoration: plan.isCompleted
-                                  ? TextDecoration.lineThrough
-                                  : null,
+                              decoration:
+                                  plan.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: plan.getStatusColor().withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
@@ -375,9 +414,9 @@ class _PlanScreenState extends State<PlanScreen> {
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     // Time and priority
                     Row(
                       children: [
@@ -405,8 +444,8 @@ class _PlanScreenState extends State<PlanScreen> {
                           plan.priority == PlanPriority.low
                               ? 'Thấp'
                               : plan.priority == PlanPriority.medium
-                                  ? 'Trung bình'
-                                  : 'Cao',
+                              ? 'Trung bình'
+                              : 'Cao',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: priorityColor,
@@ -423,31 +462,16 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
     );
   }
-  
+
   void _navigateToCreatePlan() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => CreatePlanScreen(
-          initialPlan: _selectedDay == null ? null : Plan(
-            id: '',
-            title: '',
-            startTime: DateTime(
-              _selectedDay!.year,
-              _selectedDay!.month,
-              _selectedDay!.day,
-              DateTime.now().hour,
-              (DateTime.now().minute ~/ 15) * 15,
-            ),
-            endTime: DateTime(
-              _selectedDay!.year,
-              _selectedDay!.month,
-              _selectedDay!.day,
-              DateTime.now().hour + 1,
-              (DateTime.now().minute ~/ 15) * 15,
-            ),
-          ),
-        ),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const CreatePlanScreen()));
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }

@@ -5,9 +5,12 @@ import 'package:animate_do/animate_do.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import '../../models/plan_model.dart';
 import '../../providers/plan_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/gradient_background.dart';
 import '../../widgets/top_notification.dart'; // Import widget thông báo mới
 
@@ -24,17 +27,17 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _noteController = TextEditingController();
-  
+
   late DateTime _startTime;
   late DateTime _endTime;
   PlanPriority _priority = PlanPriority.medium;
-  
+
   bool get _isEditing => widget.initialPlan != null;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Khởi tạo thời gian mặc định hoặc lấy từ kế hoạch đang chỉnh sửa
     if (_isEditing) {
       _titleController.text = widget.initialPlan!.title;
@@ -46,8 +49,10 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       // Mặc định: Bắt đầu từ giờ hiện tại, kéo dài 1 giờ
       final now = DateTime.now();
       _startTime = DateTime(
-        now.year, now.month, now.day, 
-        now.hour, 
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
         (now.minute ~/ 15) * 15, // Làm tròn đến 15 phút gần nhất
       );
       _endTime = _startTime.add(const Duration(hours: 1));
@@ -61,52 +66,303 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
     super.dispose();
   }
 
-  void _savePlan() {
+  void _savePlan() async {
     if (_formKey.currentState!.validate()) {
-      final planProvider = Provider.of<PlanProvider>(context, listen: false);
-      
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUser = userProvider.currentUser;
+      final planProvider = Provider.of<PlanProvider>(
+        context,
+        listen: false,
+      ); // Get PlanProvider instance
+
+      if (currentUser == null) {
+        // Show error if user is not logged in
+        TopNotification.show(
+          context,
+          message: 'Lỗi: Không tìm thấy thông tin người dùng.',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+        );
+        return;
+      }
+
+      String? userProjectId = currentUser.projectId;
+
+      // Bước 1: Kiểm tra và tạo Project nếu chưa có
+      if (userProjectId == null) {
+        print(
+          '[CreatePlanScreen] User does not have a projectId. Creating new project...',
+        );
+        final projectName =
+            '\${currentUser.username}_Project'; // Tên project theo username
+        final projectApiUrl = '\${userProvider.baseUrl}/api/Project';
+
+        print('// --- Request Details ---'); // Added separator
+        print(
+          '[CreatePlanScreen] Attempting to create project at URL: ${projectApiUrl}',
+        ); // LOG DEBUG URL
+        print(
+          '[CreatePlanScreen] Sending headers: ${userProvider.headers}',
+        ); // LOG DEBUG HEADERS
+        print(
+          '[CreatePlanScreen] Sending body: ${jsonEncode({'title': projectName})}',
+        ); // LOG DEBUG BODY GỬI
+        print('// -----------------------'); // Added separator
+
+        try {
+          print('[CreatePlanScreen] Calling http.post...'); // LOG TRƯỚC GỌI API
+          final projectResponse = await http.post(
+            Uri.parse(projectApiUrl),
+            headers:
+                userProvider
+                    .headers, // Sử dụng headers từ UserProvider (có token)
+            body: jsonEncode({'title': projectName}), // Gửi title
+          );
+          print(
+            '[CreatePlanScreen] Received http response.',
+          ); // LOG SAU GỌC ALL API THÀNH CÔNG
+          print('// --- Response Details ---'); // Added separator
+
+          // Sửa cách in log status code và body
+          print(
+            '[CreatePlanScreen] Create Project Status Code: ${projectResponse.statusCode}',
+          ); // LOG DEBUG STATUS
+          print(
+            '[CreatePlanScreen] Create Project Response Body: ${projectResponse.body}',
+          ); // LOG DEBUG BODY NHẬN
+          print('// ------------------------'); // Added separator
+
+          if (projectResponse.statusCode == 200 ||
+              projectResponse.statusCode == 201) {
+            final projectData = jsonDecode(projectResponse.body);
+            print(
+              '[CreatePlanScreen] Parsed project response data: ${projectData}',
+            ); // LOG DEBUG DATA PARSE
+            userProjectId =
+                projectData['project_id']
+                    as String?; // Lấy project_id từ phản hồi
+
+            if (userProjectId != null) {
+              print(
+                '[CreatePlanScreen] Project created successfully: \$userProjectId',
+              );
+              // Cập nhật currentUser trong UserProvider với projectId mới
+              userProvider.updateCurrentUser(
+                currentUser.copyWith(projectId: userProjectId),
+              );
+            } else {
+              print(
+                '[CreatePlanScreen] Error: Project created but projectId is null in response.',
+              );
+              TopNotification.show(
+                context,
+                message: 'Lỗi tạo Project: Không lấy được Project ID.',
+                backgroundColor: Colors.red,
+                icon: Icons.error,
+              );
+              return; // Stop if project creation failed
+            }
+          } else {
+            print(
+              '[CreatePlanScreen] API returned error status code: ${projectResponse.statusCode} with body: ${projectResponse.body}', // Sửa log lỗi
+            );
+            // Sửa thông báo lỗi hiển thị trên UI
+            TopNotification.show(
+              context,
+              message:
+                  'Lỗi tạo Project: Mã lỗi ${projectResponse.statusCode}', // Sửa thông báo lỗi
+              backgroundColor: Colors.red,
+              icon: Icons.error,
+            );
+            return; // Stop if project creation failed
+          }
+        } catch (e, stackTrace) {
+          // Bắt cả exception và stack trace
+          print(
+            '[CreatePlanScreen] EXCEPTION creating project: \${e.toString()}',
+          ); // LOG EXCEPTION CHI TIẾT
+          print(
+            '[CreatePlanScreen] STACKTRACE creating project: \${stackTrace.toString()}',
+          ); // LOG STACKTRACE
+          TopNotification.show(
+            context,
+            message: 'Lỗi kết nối hoặc xử lý API Project: \${e.toString()}',
+            backgroundColor: Colors.red,
+            icon: Icons.error,
+          );
+          return; // Stop on exception
+        }
+      }
+
+      // Đảm bảo có userProjectId trước khi tạo Task
+      if (userProjectId == null) {
+        print(
+          '[CreatePlanScreen] userProjectId is still null after checking/creation. Aborting Task creation.',
+        );
+        TopNotification.show(
+          context,
+          message: 'Lỗi: Không có Project ID để tạo kế hoạch.',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+        );
+        return;
+      }
+
+      // Nếu đang chỉnh sửa task
       if (_isEditing) {
-        // Cập nhật kế hoạch hiện có
-        final updatedPlan = widget.initialPlan!.copyWith(
-          title: _titleController.text.trim(),
-          note: _noteController.text.trim(),
-          startTime: _startTime,
-          endTime: _endTime,
-          priority: _priority,
+        print('[CreatePlanScreen] Updating existing task...');
+
+        // Chuẩn bị dữ liệu cập nhật
+        final Map<String, dynamic> updates = {
+          'title': _titleController.text.trim(),
+          'description': _noteController.text.trim(),
+          'timestart': _startTime.toIso8601String(),
+          'deadline': _endTime.toIso8601String(),
+          // Tính toán reminder_time (10 phút trước deadline)
+          'reminder_time':
+              _endTime.subtract(const Duration(minutes: 10)).toIso8601String(),
+          'priority':
+              _priority == PlanPriority.medium
+                  ? 'mid'
+                  : _priority.toString().split('.').last.toLowerCase(),
+          // Status có thể được cập nhật riêng nếu cần, ở đây không thay đổi status khi chỉnh sửa thời gian/nội dung
+          // 'status': ...
+        };
+
+        // Gọi phương thức cập nhật trong PlanProvider
+        bool success = await planProvider.updateTask(
+          widget.initialPlan!.id,
+          updates,
+          userProvider,
         );
-        
-        planProvider.updatePlan(widget.initialPlan!.id, updatedPlan);
-        
-        // Hiển thị thông báo ở phía trên
-        TopNotification.show(
-          context,
-          message: 'Đã cập nhật kế hoạch',
-          backgroundColor: Colors.green,
-          icon: Icons.check_circle,
-        );
+
+        if (success) {
+          TopNotification.show(
+            context,
+            message: 'Đã cập nhật kế hoạch thành công.',
+            backgroundColor: Colors.green,
+            icon: Icons.check_circle,
+          );
+          Navigator.of(
+            context,
+          ).pop(true); // Trả về true để báo hiệu cập nhật thành công
+        } else {
+          TopNotification.show(
+            context,
+            message: 'Lỗi khi cập nhật kế hoạch.',
+            backgroundColor: Colors.red,
+            icon: Icons.error,
+          );
+        }
+        return; // Kết thúc hàm sau khi xử lý cập nhật
+      }
+
+      // Bước 2: Tạo Task mới
+      final taskTitle = _titleController.text.trim();
+      final taskDescription = _noteController.text.trim();
+      final taskStartTime = _startTime;
+      final taskDeadline = _endTime;
+      final taskPriority =
+          _priority == PlanPriority.medium
+              ? 'mid'
+              : _priority.toString().split('.').last.toLowerCase();
+
+      // Tính toán reminder_time (10 phút trước deadline)
+      final reminderTime = taskDeadline.subtract(const Duration(minutes: 10));
+
+      // Xác định trạng thái ban đầu dựa trên timestart
+      String initialStatus;
+      if (taskStartTime.isAfter(DateTime.now())) {
+        initialStatus = 'upcoming';
       } else {
-        // Tạo kế hoạch mới
-        final newPlan = Plan(
-          id: const Uuid().v4(),
-          title: _titleController.text.trim(),
-          note: _noteController.text.trim(),
-          startTime: _startTime,
-          endTime: _endTime,
-          priority: _priority,
+        initialStatus = 'inprogress';
+      }
+
+      final taskApiUrl = "${userProvider.baseUrl}/api/Task";
+
+      print('// --- Task Request Details ---');
+      print(
+        '[CreatePlanScreen] Attempting to create task at URL: ${taskApiUrl}',
+      );
+      print('[CreatePlanScreen] Sending headers: ${userProvider.headers}');
+      // Log body carefully, especially if it contains sensitive info (though here it's plan data)
+      print(
+        '[CreatePlanScreen] Sending body: ${jsonEncode({'title': taskTitle, 'description': taskDescription, 'project_id': userProjectId, 'timestart': taskStartTime.toIso8601String(), 'deadline': taskDeadline.toIso8601String(), 'reminder_time': reminderTime.toIso8601String(), 'priority': taskPriority, 'status': initialStatus})}',
+      );
+      print('// ----------------------------');
+
+      try {
+        print(
+          '[CreatePlanScreen] Calling http.post for task...',
+        ); // LOG TRƯỚC GỌI API TASK
+        final taskResponse = await http.post(
+          Uri.parse(taskApiUrl),
+          headers: userProvider.headers,
+          body: jsonEncode({
+            'title': taskTitle,
+            'description': taskDescription,
+            'project_id': userProjectId,
+            'timestart': taskStartTime.toIso8601String(),
+            'deadline': taskDeadline.toIso8601String(),
+            'reminder_time': reminderTime.toIso8601String(),
+            'priority': taskPriority,
+            'status': initialStatus,
+          }),
         );
-        
-        planProvider.addPlan(newPlan);
-        
-        // Hiển thị thông báo ở phía trên
+
+        print(
+          '[CreatePlanScreen] Received http response for task.',
+        ); // LOG SAU GỌC ALL API TASK THÀNH CÔNG
+        print('// --- Task Response Details ---'); // Added separator
+        print(
+          '[CreatePlanScreen] Create Task Status Code: ${taskResponse.statusCode}',
+        ); // LOG DEBUG STATUS TASK
+        print(
+          '[CreatePlanScreen] Create Task Response Body: ${taskResponse.body}',
+        ); // LOG DEBUG BODY NHẬN TASK
+        print('// -----------------------------'); // Added separator
+
+        if (taskResponse.statusCode == 200 || taskResponse.statusCode == 201) {
+          print('[CreatePlanScreen] Task created successfully.');
+          TopNotification.show(
+            context,
+            message: 'Đã tạo kế hoạch mới thành công!',
+            backgroundColor: Colors.green,
+            icon: Icons.check_circle,
+          );
+          // TODO: Có thể cần fetch lại danh sách Task/Project trong provider nếu UI cần cập nhật
+          Navigator.pop(context); // Đóng màn hình sau khi tạo thành công
+        } else {
+          // Handle API errors (non-2xx status codes)
+          print(
+            '[CreatePlanScreen] Task API returned error status code: ${taskResponse.statusCode} with body: ${taskResponse.body}',
+          );
+          TopNotification.show(
+            context,
+            message:
+                'Lỗi tạo kế hoạch: Mã lỗi ${taskResponse.statusCode} - ${taskResponse.body}', // Sửa thông báo lỗi hiển thị chi tiết
+            backgroundColor: Colors.red,
+            icon: Icons.error,
+          );
+        }
+      } catch (e, stackTrace) {
+        // Handle exceptions during the HTTP call
+        print(
+          '[CreatePlanScreen] EXCEPTION creating task: ${e.toString()}',
+        ); // LOG EXCEPTION CHI TIẾT TASK
+        print(
+          '[CreatePlanScreen] STACKTRACE creating task: ${stackTrace.toString()}',
+        ); // LOG STACKTRACE TASK
         TopNotification.show(
           context,
-          message: 'Đã tạo kế hoạch mới',
-          backgroundColor: Colors.green,
-          icon: Icons.check_circle,
+          message:
+              'Lỗi kết nối hoặc xử lý API Task: ${e.toString()}', // Sửa thông báo lỗi exception chi tiết
+          backgroundColor: Colors.red,
+          icon: Icons.error,
         );
       }
-      
-      Navigator.pop(context);
+
+      // TODO: Consider adding a finally block here to hide loading indicator
     }
   }
 
@@ -115,7 +371,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(_startTime),
     );
-    
+
     if (pickedTime != null) {
       setState(() {
         _startTime = DateTime(
@@ -125,9 +381,10 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
           pickedTime.hour,
           pickedTime.minute,
         );
-        
+
         // Đảm bảo rằng thời gian kết thúc luôn sau thời gian bắt đầu
-        if (_endTime.isBefore(_startTime) || _endTime.isAtSameMomentAs(_startTime)) {
+        if (_endTime.isBefore(_startTime) ||
+            _endTime.isAtSameMomentAs(_startTime)) {
           _endTime = _startTime.add(const Duration(hours: 1));
         }
       });
@@ -139,7 +396,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(_endTime),
     );
-    
+
     if (pickedTime != null) {
       final newEndTime = DateTime(
         _endTime.year,
@@ -148,7 +405,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         pickedTime.hour,
         pickedTime.minute,
       );
-      
+
       // Kiểm tra nếu thời gian kết thúc là sau thời gian bắt đầu
       if (newEndTime.isAfter(_startTime)) {
         // Kiểm tra thời lượng tối thiểu (15 phút)
@@ -165,7 +422,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
           );
           return;
         }
-        
+
         setState(() {
           _endTime = newEndTime;
         });
@@ -190,50 +447,49 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (pickedDate != null) {
       // Kiểm tra nếu ngày đã chọn là trong quá khứ
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day);
-      
+      final selectedDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+      );
+
       if (selectedDate.isBefore(today)) {
         // Hiển thị xác nhận cho ngày trong quá khứ
         final confirmPast = await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text(
-              'Xác nhận ngày trong quá khứ',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              'Bạn đang tạo kế hoạch cho ngày trong quá khứ. Bạn có chắc chắn muốn tiếp tục?',
-              style: GoogleFonts.poppins(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(
-                  'Hủy',
+          builder:
+              (context) => AlertDialog(
+                title: Text(
+                  'Xác nhận ngày trong quá khứ',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                ),
+                content: Text(
+                  'Bạn đang tạo kế hoạch cho ngày trong quá khứ. Bạn có chắc chắn muốn tiếp tục?',
                   style: GoogleFonts.poppins(),
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Hủy', style: GoogleFonts.poppins()),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('Xác nhận', style: GoogleFonts.poppins()),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(
-                  'Xác nhận',
-                  style: GoogleFonts.poppins(),
-                ),
-              ),
-            ],
-          ),
         );
-        
+
         if (confirmPast != true) {
           return;
         }
       }
-      
+
       setState(() {
         _startTime = DateTime(
           pickedDate.year,
@@ -319,9 +575,9 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Date picker
                 FadeInDown(
                   duration: const Duration(milliseconds: 600),
@@ -355,9 +611,9 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Time range
                 FadeInDown(
                   duration: const Duration(milliseconds: 800),
@@ -382,7 +638,10 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                                   'Bắt đầu',
                                   style: GoogleFonts.poppins(
                                     fontSize: 14,
-                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    color:
+                                        isDark
+                                            ? Colors.white60
+                                            : Colors.black54,
                                   ),
                                 ),
                                 Text(
@@ -390,7 +649,8 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    color: isDark ? Colors.white : Colors.black87,
+                                    color:
+                                        isDark ? Colors.white : Colors.black87,
                                   ),
                                 ),
                               ],
@@ -414,7 +674,10 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                                   'Kết thúc',
                                   style: GoogleFonts.poppins(
                                     fontSize: 14,
-                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    color:
+                                        isDark
+                                            ? Colors.white60
+                                            : Colors.black54,
                                   ),
                                 ),
                                 Text(
@@ -422,7 +685,8 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    color: isDark ? Colors.white : Colors.black87,
+                                    color:
+                                        isDark ? Colors.white : Colors.black87,
                                   ),
                                 ),
                               ],
@@ -433,9 +697,9 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Priority
                 FadeInDown(
                   duration: const Duration(milliseconds: 1000),
@@ -472,9 +736,9 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Note
                 FadeInDown(
                   duration: const Duration(milliseconds: 1200),
@@ -504,9 +768,9 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
+
                 // Save button
                 FadeInUp(
                   duration: const Duration(milliseconds: 1400),
@@ -535,7 +799,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
               ],
             ),
@@ -548,16 +812,12 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
   Widget _buildSectionTitle(String title, IconData icon) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Padding(
       padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 18,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(icon, size: 18, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Text(
             title,
@@ -579,7 +839,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return GestureDetector(
       onTap: onTap,
       child: GlassmorphicContainer(
@@ -592,28 +852,30 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         linearGradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.05),
-                ]
-              : [
-                  Colors.white.withOpacity(0.7),
-                  Colors.white.withOpacity(0.4),
-                ],
+          colors:
+              isDark
+                  ? [
+                    Colors.white.withOpacity(0.1),
+                    Colors.white.withOpacity(0.05),
+                  ]
+                  : [
+                    Colors.white.withOpacity(0.7),
+                    Colors.white.withOpacity(0.4),
+                  ],
         ),
         borderGradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  Colors.white.withOpacity(0.15),
-                  Colors.white.withOpacity(0.05),
-                ]
-              : [
-                  Colors.white.withOpacity(0.5),
-                  Colors.white.withOpacity(0.2),
-                ],
+          colors:
+              isDark
+                  ? [
+                    Colors.white.withOpacity(0.15),
+                    Colors.white.withOpacity(0.05),
+                  ]
+                  : [
+                    Colors.white.withOpacity(0.5),
+                    Colors.white.withOpacity(0.2),
+                  ],
         ),
         child: child,
       ),
@@ -627,7 +889,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
   ) {
     final isSelected = _priority == priority;
     final theme = Theme.of(context);
-    
+
     return Expanded(
       child: InkWell(
         onTap: () {
@@ -639,9 +901,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: isSelected 
-                ? color.withOpacity(0.2)
-                : Colors.transparent,
+            color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
               color: isSelected ? color : Colors.transparent,
@@ -655,9 +915,12 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                 priority == PlanPriority.low
                     ? Icons.low_priority
                     : priority == PlanPriority.medium
-                        ? Icons.flag
-                        : Icons.priority_high,
-                color: isSelected ? color : theme.iconTheme.color?.withOpacity(0.6),
+                    ? Icons.flag
+                    : Icons.priority_high,
+                color:
+                    isSelected
+                        ? color
+                        : theme.iconTheme.color?.withOpacity(0.6),
                 size: 16,
               ),
               const SizedBox(width: 4),
