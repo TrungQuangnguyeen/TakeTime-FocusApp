@@ -88,109 +88,37 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
 
       String? userProjectId = currentUser.projectId;
 
-      // Bước 1: Kiểm tra và tạo Project nếu chưa có
+      // Bước 1: Lấy projectId nếu chưa có (KHÔNG tự tạo project ở Flutter nữa)
       if (userProjectId == null) {
-        print(
-          '[CreatePlanScreen] User does not have a projectId. Creating new project...',
+        final projectApiUrl = '${userProvider.baseUrl}/api/Project';
+        final response = await http.get(
+          Uri.parse(projectApiUrl),
+          headers: userProvider.headers,
         );
-        final projectName =
-            '\${currentUser.username}_Project'; // Tên project theo username
-        final projectApiUrl = '\${userProvider.baseUrl}/api/Project';
-
-        print('// --- Request Details ---'); // Added separator
-        print(
-          '[CreatePlanScreen] Attempting to create project at URL: ${projectApiUrl}',
-        ); // LOG DEBUG URL
-        print(
-          '[CreatePlanScreen] Sending headers: ${userProvider.headers}',
-        ); // LOG DEBUG HEADERS
-        print(
-          '[CreatePlanScreen] Sending body: ${jsonEncode({'title': projectName})}',
-        ); // LOG DEBUG BODY GỬI
-        print('// -----------------------'); // Added separator
-
-        try {
-          print('[CreatePlanScreen] Calling http.post...'); // LOG TRƯỚC GỌI API
-          final projectResponse = await http.post(
-            Uri.parse(projectApiUrl),
-            headers:
-                userProvider
-                    .headers, // Sử dụng headers từ UserProvider (có token)
-            body: jsonEncode({'title': projectName}), // Gửi title
-          );
-          print(
-            '[CreatePlanScreen] Received http response.',
-          ); // LOG SAU GỌC ALL API THÀNH CÔNG
-          print('// --- Response Details ---'); // Added separator
-
-          // Sửa cách in log status code và body
-          print(
-            '[CreatePlanScreen] Create Project Status Code: ${projectResponse.statusCode}',
-          ); // LOG DEBUG STATUS
-          print(
-            '[CreatePlanScreen] Create Project Response Body: ${projectResponse.body}',
-          ); // LOG DEBUG BODY NHẬN
-          print('// ------------------------'); // Added separator
-
-          if (projectResponse.statusCode == 200 ||
-              projectResponse.statusCode == 201) {
-            final projectData = jsonDecode(projectResponse.body);
-            print(
-              '[CreatePlanScreen] Parsed project response data: ${projectData}',
-            ); // LOG DEBUG DATA PARSE
-            userProjectId =
-                projectData['project_id']
-                    as String?; // Lấy project_id từ phản hồi
-
-            if (userProjectId != null) {
-              print(
-                '[CreatePlanScreen] Project created successfully: \$userProjectId',
-              );
-              // Cập nhật currentUser trong UserProvider với projectId mới
-              userProvider.updateCurrentUser(
-                currentUser.copyWith(projectId: userProjectId),
-              );
-            } else {
-              print(
-                '[CreatePlanScreen] Error: Project created but projectId is null in response.',
-              );
-              TopNotification.show(
-                context,
-                message: 'Lỗi tạo Project: Không lấy được Project ID.',
-                backgroundColor: Colors.red,
-                icon: Icons.error,
-              );
-              return; // Stop if project creation failed
-            }
-          } else {
-            print(
-              '[CreatePlanScreen] API returned error status code: ${projectResponse.statusCode} with body: ${projectResponse.body}', // Sửa log lỗi
+        if (response.statusCode == 200) {
+          final List projects = jsonDecode(response.body);
+          if (projects.isNotEmpty) {
+            userProjectId = projects[0]['project_id'];
+            userProvider.updateCurrentUser(
+              currentUser.copyWith(projectId: userProjectId),
             );
-            // Sửa thông báo lỗi hiển thị trên UI
+          } else {
             TopNotification.show(
               context,
-              message:
-                  'Lỗi tạo Project: Mã lỗi ${projectResponse.statusCode}', // Sửa thông báo lỗi
+              message: 'Không lấy được Project ID.',
               backgroundColor: Colors.red,
               icon: Icons.error,
             );
-            return; // Stop if project creation failed
+            return;
           }
-        } catch (e, stackTrace) {
-          // Bắt cả exception và stack trace
-          print(
-            '[CreatePlanScreen] EXCEPTION creating project: \${e.toString()}',
-          ); // LOG EXCEPTION CHI TIẾT
-          print(
-            '[CreatePlanScreen] STACKTRACE creating project: \${stackTrace.toString()}',
-          ); // LOG STACKTRACE
+        } else {
           TopNotification.show(
             context,
-            message: 'Lỗi kết nối hoặc xử lý API Project: \${e.toString()}',
+            message: 'Lỗi lấy Project: \\${response.statusCode}',
             backgroundColor: Colors.red,
             icon: Icons.error,
           );
-          return; // Stop on exception
+          return;
         }
       }
 
