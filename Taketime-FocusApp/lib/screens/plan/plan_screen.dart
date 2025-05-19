@@ -10,6 +10,7 @@ import '../../widgets/gradient_background.dart';
 import 'create_plan_screen.dart';
 import 'plan_detail_screen.dart';
 import '../../providers/user_provider.dart';
+import 'dart:async';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -25,12 +26,20 @@ class _PlanScreenState extends State<PlanScreen>
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late TabController _tabController;
+  Timer? _statusUpdateTimer;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
     _tabController = TabController(length: 4, vsync: this);
+
+    // Thiết lập timer cập nhật trạng thái mỗi 30 giây
+    _statusUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      final planProvider = Provider.of<PlanProvider>(context, listen: false);
+      planProvider
+          .notifyListeners(); // Kích hoạt getter plans để cập nhật trạng thái
+    });
   }
 
   @override
@@ -67,7 +76,7 @@ class _PlanScreenState extends State<PlanScreen>
             style: GoogleFonts.poppins(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           centerTitle: true,
@@ -463,15 +472,26 @@ class _PlanScreenState extends State<PlanScreen>
     );
   }
 
-  void _navigateToCreatePlan() {
-    Navigator.of(
+  void _navigateToCreatePlan() async {
+    final result = await Navigator.push(
       context,
-    ).push(MaterialPageRoute(builder: (context) => const CreatePlanScreen()));
+      MaterialPageRoute(builder: (context) => const CreatePlanScreen()),
+    );
+    if (result == true) {
+      // Sau khi thêm kế hoạch mới, cập nhật lại danh sách
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final planProvider = Provider.of<PlanProvider>(context, listen: false);
+      if (userProvider.currentUser != null) {
+        await planProvider.fetchPlans(userProvider);
+      }
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _statusUpdateTimer?.cancel();
     super.dispose();
   }
 }
