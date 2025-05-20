@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import '../models/daily_focus_stats.dart';
 
 class FocusModeService {
   final String baseUrl;
@@ -16,12 +18,14 @@ class FocusModeService {
     required String modeStatus,
     required DateTime timeEnd,
     required String result,
+    required int durationMinutes,
   }) async {
     final url = Uri.parse('$baseUrl/api/FocusMode');
     final body = jsonEncode({
       'modeStatus': modeStatus,
       'timeEnd': timeEnd.toIso8601String(),
       'result': result,
+      'durationMinutes': durationMinutes,
     });
     final response = await http.post(url, headers: _headers, body: body);
     if (response.statusCode == 201) {
@@ -57,6 +61,24 @@ class FocusModeService {
       return jsonDecode(response.body) as List;
     }
     return [];
+  }
+
+  Future<DailyFocusStats?> getDailyFocusStats() async {
+    final url = Uri.parse('$baseUrl/api/FocusMode/stats/daily');
+    try {
+      final response = await http.get(url, headers: _headers);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return DailyFocusStats.fromJson(data);
+      } else {
+        debugPrint('Failed to load daily focus stats: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error fetching daily focus stats: $e');
+      return null;
+    }
   }
 
   Future<bool> deleteFocusMode(String modeId) async {

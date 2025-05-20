@@ -63,10 +63,33 @@ class _FocusModeScreenState extends State<FocusModeScreen>
     });
     final service = _getFocusModeService(context);
     final data = await service.getMyFocusModes();
+    // Lấy dữ liệu local
+    final localSessions =
+        Provider.of<FocusSessionProvider>(context, listen: false).sessions;
     _serverSessions =
         data.map<FocusSession>((item) {
           final resultStr =
               (item['result'] ?? '').toString().trim().toLowerCase();
+          // Tìm session local có cùng id (modeId)
+          final local = localSessions.firstWhere(
+            (s) => s.id == (item['modeId'] ?? ''),
+            orElse:
+                () => FocusSession(
+                  id: item['modeId'] ?? '',
+                  startTime: DateTime.parse(item['time']),
+                  endTime:
+                      item['timeEnd'] != null
+                          ? DateTime.parse(item['timeEnd'])
+                          : null,
+                  durationMinutes:
+                      item['timeEnd'] != null && item['time'] != null
+                          ? DateTime.parse(
+                            item['timeEnd'],
+                          ).difference(DateTime.parse(item['time'])).inMinutes
+                          : 0,
+                  completed: resultStr == 'completed',
+                ),
+          );
           return FocusSession(
             id: item['modeId'] ?? '',
             startTime: DateTime.parse(item['time']),
@@ -75,11 +98,7 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                     ? DateTime.parse(item['timeEnd'])
                     : null,
             durationMinutes:
-                item['timeEnd'] != null && item['time'] != null
-                    ? DateTime.parse(
-                      item['timeEnd'],
-                    ).difference(DateTime.parse(item['time'])).inMinutes
-                    : 0,
+                item['durationMinutes'] ?? 0, // Lấy đúng trường từ API
             completed: resultStr == 'completed',
           );
         }).toList();
@@ -97,6 +116,7 @@ class _FocusModeScreenState extends State<FocusModeScreen>
         modeStatus: 'Enable',
         timeEnd: timeEnd,
         result: 'Completed',
+        durationMinutes: _selectedFocusTime,
       );
       if (result != null && result['modeId'] != null) {
         _currentModeId = result['modeId'];
@@ -421,70 +441,54 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                   const SizedBox(height: 16),
 
                   // End button
-                  FadeInUp(
-                    duration: const Duration(milliseconds: 1000),
-                    child: Center(
-                      child: TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _isFocusModeActive = false;
-                            _animationController.stop();
-                            _animationController.reset();
-                          });
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.95),
-                          foregroundColor: Colors.grey[700],
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                  _isFocusModeActive
+                      ? FadeInUp(
+                        duration: const Duration(milliseconds: 1000),
+                        child: Center(
+                          child: TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _isFocusModeActive = false;
+                                _animationController.stop();
+                                _animationController.reset();
+                              });
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.95),
+                              foregroundColor: Colors.grey[700],
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 40,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            icon: const Icon(Icons.stop, size: 20),
+                            label: Text(
+                              'Kết thúc',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ),
-                        icon: const Icon(Icons.stop, size: 20),
-                        label: Text(
-                          'Kết thúc',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                      )
+                      : const SizedBox.shrink(),
 
                   // Session history section
                   const SizedBox(height: 50),
 
                   FadeInUp(
                     duration: const Duration(milliseconds: 1100),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Lịch sử phiên làm việc',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            _showClearHistoryConfirmation();
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.white70,
-                          ),
-                          icon: const Icon(Icons.delete_outline, size: 18),
-                          label: Text(
-                            'Xóa lịch sử',
-                            style: GoogleFonts.poppins(fontSize: 12),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Lịch sử phiên làm việc',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
 
@@ -626,13 +630,7 @@ class _FocusModeScreenState extends State<FocusModeScreen>
   Widget _buildSessionItemFromData(FocusSession session) {
     final DateFormat dateFormat = DateFormat('HH:mm, d/M');
     final String timeText = dateFormat.format(session.startTime);
-    // Nếu endTime null hoặc nhỏ hơn startTime, hiển thị 0 phút
-    int duration = 0;
-    if (session.endTime != null &&
-        session.endTime!.isAfter(session.startTime)) {
-      duration = session.endTime!.difference(session.startTime).inMinutes;
-      if (duration < 0) duration = 0;
-    }
+    final int duration = session.durationMinutes; // Luôn lấy số phút đặt ra
     final String durationText = '$duration phút';
     final bool isCompleted = session.completed;
     return Dismissible(
@@ -705,41 +703,45 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                 ),
               ),
             ),
-            Expanded(
-              flex: 1,
-              child: Text(
-                durationText,
-                style: GoogleFonts.poppins(fontSize: 14),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color:
-                    isCompleted
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isCompleted ? Icons.check_circle : Icons.cancel,
-                    size: 16,
-                    color: isCompleted ? Colors.green : Colors.red,
+            Spacer(),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(durationText, style: GoogleFonts.poppins(fontSize: 14)),
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isCompleted ? 'Hoàn thành' : 'Thất bại',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isCompleted ? Colors.green : Colors.red,
-                    ),
+                  decoration: BoxDecoration(
+                    color:
+                        isCompleted
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isCompleted ? Icons.check_circle : Icons.cancel,
+                        size: 16,
+                        color: isCompleted ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isCompleted ? 'Hoàn thành' : 'Thất bại',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isCompleted ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
