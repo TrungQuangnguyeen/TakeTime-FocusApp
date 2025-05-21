@@ -195,13 +195,20 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
                 // Header
                 Row(
                   children: [
-                    IconButton(
-                      onPressed: () {
-                        _showExitConfirmationDialog();
-                      },
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.white,
-                    ),
+                    // Ẩn nút Back khi timer đang chạy (_timer?.isActive)
+                    _timer != null && _timer!.isActive
+                        ? const SizedBox(
+                          width: 48,
+                        ) // Giữ khoảng trống để layout không nhảy
+                        : IconButton(
+                          onPressed: () {
+                            _showExitConfirmationDialog();
+                          },
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                        ),
                     Expanded(
                       child: Center(
                         child: FadeInDown(
@@ -217,7 +224,6 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 48),
                   ],
                 ),
 

@@ -109,7 +109,8 @@ class AuthService {
     try {
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        // redirectTo: kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
+        redirectTo:
+            kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
         // For non-web, you might need to configure a redirect URL.
         // For web, Supabase handles it automatically if the URL is in your Supabase dashboard.
       );
@@ -127,7 +128,8 @@ class AuthService {
     try {
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.facebook,
-        // redirectTo: kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
+        redirectTo:
+            kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
         // Similar to Google, configure redirect for non-web if needed.
       );
     } on AuthException catch (e) {
