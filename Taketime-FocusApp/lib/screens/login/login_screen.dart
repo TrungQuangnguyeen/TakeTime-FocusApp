@@ -16,7 +16,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   late AnimationController _backgroundAnimationController;
@@ -31,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       duration: const Duration(seconds: 20),
     )..repeat(reverse: true);
   }
-  
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -66,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               );
             },
           ),
-          
+
           // Animated Floating Bubbles
           ...List.generate(
             5,
@@ -81,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   builder: (context, child) {
                     return Container(
                       width: 100 + (index * 30),
-                      height: 100 + (index * 30),
+                      height: 70 + (index * 30),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white.withOpacity(0.03 + (index * 0.01)),
@@ -99,74 +100,64 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
           ),
-          
+
           // Main Content
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo Animation
                       FadeInDown(
                         duration: const Duration(milliseconds: 800),
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF4E6AF3).withOpacity(0.3),
-                                blurRadius: 25,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.auto_awesome,
-                              size: 55,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
+                        child: Image.asset(
+                          'assets/images/app_logo.png',
+                          width: 350,
+                          height: 350,
                         ),
                       ),
-                      
-                      const SizedBox(height: 30),
-                      
+
+                      const SizedBox(
+                        height: 5.0,
+                      ), // Addressed space between logo and title
                       // App Title with Animation
                       FadeInDown(
                         duration: const Duration(milliseconds: 1000),
                         delay: const Duration(milliseconds: 300),
-                        child: AnimatedTextKit(
-                          animatedTexts: [
-                            TypewriterAnimatedText(
-                              'TakeTime',
-                              textStyle: GoogleFonts.poppins(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 10,
-                                    color: Colors.black.withOpacity(0.2),
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
+                        child: Transform.translate(
+                          offset: const Offset(
+                            0.0,
+                            -40.0,
+                          ), // Adjust Y offset as needed
+                          child: AnimatedTextKit(
+                            animatedTexts: [
+                              TypewriterAnimatedText(
+                                'Take Your Time',
+                                textStyle: GoogleFonts.poppins(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 10,
+                                      color: Colors.black.withOpacity(0.2),
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                speed: const Duration(milliseconds: 100),
                               ),
-                              speed: const Duration(milliseconds: 100),
-                            ),
-                          ],
-                          totalRepeatCount: 1,
+                            ],
+                            totalRepeatCount: 1,
+                          ),
                         ),
                       ),
-                      
-                      const SizedBox(height: 10),
-                      
+
+                      const SizedBox(height: 0),
+
                       // Tagline
                       FadeInDown(
                         duration: const Duration(milliseconds: 1000),
@@ -181,9 +172,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 40),
-                      
+
                       // Login Card with Glassmorphism
                       FadeInUp(
                         duration: const Duration(milliseconds: 1000),
@@ -191,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         child: GlassmorphicContainer(
                           width: double.infinity,
                           // Adjusted height if necessary, or let it size by children
-                          height: 250, 
+                          height: 250,
                           borderRadius: 30,
                           blur: 10,
                           alignment: Alignment.center,
@@ -228,20 +219,28 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         // onAuthStateChange in app.dart will handle navigation
                                       } catch (e) {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text("Lỗi đăng nhập Google: ${e.toString()}")),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                "Lỗi đăng nhập Google: ${e.toString()}",
+                                              ),
+                                            ),
                                           );
                                         }
                                       }
                                     },
                                   ),
                                 ),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 // Sử dụng FacebookLoginButton mới
                                 FadeInUp(
-                                  delay: const Duration(milliseconds: 900), // delay +100ms
+                                  delay: const Duration(
+                                    milliseconds: 900,
+                                  ), // delay +100ms
                                   child: FacebookLoginButton(
                                     onPressed: () async {
                                       try {
@@ -249,45 +248,60 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         // onAuthStateChange in app.dart will handle navigation
                                       } catch (e) {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text("Lỗi đăng nhập Facebook: ${e.toString()}")),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                "Lỗi đăng nhập Facebook: ${e.toString()}",
+                                              ),
+                                            ),
                                           );
                                         }
                                       }
                                     },
                                   ),
                                 ),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 // Nút đăng nhập khách (giữ nguyên nếu cần)
-                                _buildSocialLoginButton( // Giữ lại hàm này cho nút Khách
+                                _buildSocialLoginButton(
+                                  // Giữ lại hàm này cho nút Khách
                                   context,
                                   "Tiếp tục với tư cách khách",
                                   Colors.grey.shade700,
                                   Icons.person_outline,
                                   () async {
                                     try {
-                                      await _authService.signInAsGuest(); // Now uses Supabase anonymous sign-in
+                                      await _authService
+                                          .signInAsGuest(); // Now uses Supabase anonymous sign-in
                                       // onAuthStateChange in app.dart will handle navigation
                                     } catch (e) {
-                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text("Lỗi đăng nhập khách: ${e.toString()}")),
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              "Lỗi đăng nhập khách: ${e.toString()}",
+                                            ),
+                                          ),
                                         );
                                       }
                                     }
                                   },
-                                  delayMs: 200, // So với FadeInUp gốc là 800 + 200 = 1000ms
+                                  delayMs:
+                                      200, // So với FadeInUp gốc là 800 + 200 = 1000ms
                                 ),
                               ],
                             ),
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Terms and Policy
                       FadeInUp(
                         duration: const Duration(milliseconds: 1000),
@@ -327,7 +341,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     required int delayMs,
   }) {
     return FadeInUp(
-      delay: Duration(milliseconds: 800 + delayMs), // Giữ nguyên logic delay gốc
+      delay: Duration(
+        milliseconds: 800 + delayMs,
+      ), // Giữ nguyên logic delay gốc
       child: Container(
         width: double.infinity,
         height: 50,
@@ -343,11 +359,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         ),
         child: ElevatedButton.icon(
           onPressed: onPressed,
-          icon: Icon(
-            icon,
-            color: Colors.white,
-            size: 22,
-          ),
+          icon: Icon(icon, color: Colors.white, size: 22),
           label: Flexible(
             child: Text(
               text,
