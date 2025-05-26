@@ -54,6 +54,8 @@ dependencies:
   flutter_facebook_auth: ^6.0.0 # Added for Facebook login - may need specific Supabase integration or a different package
   google_sign_in: ^6.1.5 # Added for Google login - may need specific Supabase integration or a different package
   supabase_flutter: ^2.0.0 # Added for Supabase
+  flutter_local_notifications: ^17.1.2 # Thêm dependency thông báo cục bộ
+  timezone: ^0.9.3 # Thêm dependency xử lý múi giờ cho thông báo
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3

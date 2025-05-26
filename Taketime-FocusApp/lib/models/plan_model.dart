@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 enum PlanPriority { low, medium, high }
 
@@ -219,5 +220,25 @@ class Plan {
           false, // Giả định có trường is_completed (hoặc logic tính toán)
       status: parseStatus(json['status']), // Sử dụng hàm parseStatus
     );
+  }
+
+  // Thêm phương thức toJson để chuyển đổi Plan object thành JSON
+  Map<String, dynamic> toJson() {
+    return {
+      //'id': id, // ID thường do backend tạo khi thêm mới
+      'title': title,
+      'description': note, // Sử dụng 'description' cho note
+      'timestart':
+          startTime.toIso8601String(), // Sử dụng 'timestart' cho startTime
+      'deadline': endTime.toIso8601String(), // Sử dụng 'deadline' cho endTime
+      'priority':
+          priority
+              .toString()
+              .split('.')
+              .last
+              .toLowerCase(), // Chuyển đổi enum sang String lowercase
+      //'is_completed': isCompleted, // Có thể không cần gửi khi tạo mới
+      //'status': status.toString().split('.').last.toLowerCase(), // Có thể không cần gửi khi tạo mới
+    };
   }
 }
