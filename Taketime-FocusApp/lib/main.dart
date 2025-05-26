@@ -9,6 +9,7 @@ import 'providers/user_provider.dart';
 import 'providers/focus_session_provider.dart'; // Thêm import cho FocusSessionProvider
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'services/auth_service.dart'; // Thêm dòng này
+import 'services/notification_service.dart'; // Import NotificationService
 
 Future<void> main() async {
   await Supabase.initialize(
@@ -16,6 +17,9 @@ Future<void> main() async {
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZGVteGhieG1odW91YXR4cG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzMTY1NzksImV4cCI6MjA2MDg5MjU3OX0.qxTTlSP5fwu4GcRC29Y_ZroCAthUx2X_F6dOHG0M9_E',
   );
+
+  // Khởi tạo Notification Service
+  await NotificationService().init();
 
   runZonedGuarded(
     () async {

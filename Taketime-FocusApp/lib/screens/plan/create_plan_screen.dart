@@ -185,109 +185,34 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         return; // Kết thúc hàm sau khi xử lý cập nhật
       }
 
-      // Bước 2: Tạo Task mới
-      final taskTitle = _titleController.text.trim();
-      final taskDescription = _noteController.text.trim();
-      final taskStartTime = _startTime;
-      final taskDeadline = _endTime;
-      final taskPriority =
-          _priority == PlanPriority.medium
-              ? 'mid'
-              : _priority.toString().split('.').last.toLowerCase();
+      // Nếu đang tạo task mới, sử dụng addTaskApi
+      print('[CreatePlanScreen] Creating new task using addTaskApi...');
 
-      // Tính toán reminder_time (10 phút trước deadline)
-      final reminderTime = taskDeadline.subtract(const Duration(minutes: 10));
-
-      // Xác định trạng thái ban đầu dựa trên timestart
-      String initialStatus;
-      if (taskStartTime.isAfter(DateTime.now())) {
-        initialStatus = 'upcoming';
-      } else {
-        initialStatus = 'inprogress';
-      }
-
-      final taskApiUrl = "${userProvider.baseUrl}/api/Task";
-
-      print('// --- Task Request Details ---');
-      print(
-        '[CreatePlanScreen] Attempting to create task at URL: ${taskApiUrl}',
+      final newTask = Plan(
+        id: const Uuid().v4(), // Tạo một ID tạm thời (backend sẽ tạo ID thật)
+        title: _titleController.text.trim(),
+        startTime: _startTime,
+        endTime: _endTime,
+        note: _noteController.text.trim(),
+        priority: _priority,
+        // Status và isCompleted sẽ được xử lý bởi backend hoặc logic fetch
       );
-      print('[CreatePlanScreen] Sending headers: ${userProvider.headers}');
-      // Log body carefully, especially if it contains sensitive info (though here it's plan data)
-      print(
-        '[CreatePlanScreen] Sending body: ${jsonEncode({'title': taskTitle, 'description': taskDescription, 'project_id': userProjectId, 'timestart': taskStartTime.toIso8601String(), 'deadline': taskDeadline.toIso8601String(), 'reminder_time': reminderTime.toIso8601String(), 'priority': taskPriority, 'status': initialStatus})}',
-      );
-      print('// ----------------------------');
 
-      try {
-        print(
-          '[CreatePlanScreen] Calling http.post for task...',
-        ); // LOG TRƯỚC GỌI API TASK
-        final taskResponse = await http.post(
-          Uri.parse(taskApiUrl),
-          headers: userProvider.headers,
-          body: jsonEncode({
-            'title': taskTitle,
-            'description': taskDescription,
-            'project_id': userProjectId,
-            'timestart': taskStartTime.toIso8601String(),
-            'deadline': taskDeadline.toIso8601String(),
-            'reminder_time': reminderTime.toIso8601String(),
-            'priority': taskPriority,
-            'status': initialStatus,
-          }),
-        );
+      // Gọi phương thức addTaskApi trong PlanProvider
+      bool success = await planProvider.addTaskApi(newTask, userProvider);
 
-        print(
-          '[CreatePlanScreen] Received http response for task.',
-        ); // LOG SAU GỌC ALL API TASK THÀNH CÔNG
-        print('// --- Task Response Details ---'); // Added separator
-        print(
-          '[CreatePlanScreen] Create Task Status Code: ${taskResponse.statusCode}',
-        ); // LOG DEBUG STATUS TASK
-        print(
-          '[CreatePlanScreen] Create Task Response Body: ${taskResponse.body}',
-        ); // LOG DEBUG BODY NHẬN TASK
-        print('// -----------------------------'); // Added separator
-
-        if (taskResponse.statusCode == 200 || taskResponse.statusCode == 201) {
-          print('[CreatePlanScreen] Task created successfully.');
-          TopNotification.show(
-            context,
-            message: 'Đã tạo kế hoạch mới thành công!',
-            backgroundColor: Colors.green,
-            icon: Icons.check_circle,
-          );
-          // TODO: Có thể cần fetch lại danh sách Task/Project trong provider nếu UI cần cập nhật
-          Navigator.pop(context); // Đóng màn hình sau khi tạo thành công
-        } else {
-          // Handle API errors (non-2xx status codes)
-          print(
-            '[CreatePlanScreen] Task API returned error status code: ${taskResponse.statusCode} with body: ${taskResponse.body}',
-          );
-          TopNotification.show(
-            context,
-            message:
-                'Lỗi tạo kế hoạch: Mã lỗi ${taskResponse.statusCode} - ${taskResponse.body}', // Sửa thông báo lỗi hiển thị chi tiết
-            backgroundColor: Colors.red,
-            icon: Icons.error,
-          );
-        }
-      } catch (e, stackTrace) {
-        // Handle exceptions during the HTTP call
-        print(
-          '[CreatePlanScreen] EXCEPTION creating task: ${e.toString()}',
-        ); // LOG EXCEPTION CHI TIẾT TASK
-        print(
-          '[CreatePlanScreen] STACKTRACE creating task: ${stackTrace.toString()}',
-        ); // LOG STACKTRACE TASK
+      if (success) {
         TopNotification.show(
           context,
-          message:
-              'Lỗi kết nối hoặc xử lý API Task: ${e.toString()}', // Sửa thông báo lỗi exception chi tiết
-          backgroundColor: Colors.red,
-          icon: Icons.error,
+          message: 'Đã tạo kế hoạch mới thành công!',
+          backgroundColor: Colors.green,
+          icon: Icons.check_circle,
         );
+        Navigator.pop(context); // Đóng màn hình sau khi tạo thành công
+      } else {
+        // Lỗi đã được xử lý và hiển thị trong addTaskApi
+        print('[CreatePlanScreen] Failed to create task via addTaskApi.');
+        // Thông báo lỗi đã hiển thị từ addTaskApi, không cần hiển thị lại ở đây
       }
 
       // TODO: Consider adding a finally block here to hide loading indicator
