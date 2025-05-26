@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/focus_session.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class FocusSessionProvider with ChangeNotifier {
   List<FocusSession> _sessions = [];
@@ -20,14 +21,17 @@ class FocusSessionProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? sessionsString = prefs.getString(_storageKey);
-      
+
       if (sessionsString == null) return;
-      
+
       final List<dynamic> decodedData = jsonDecode(sessionsString);
-      _sessions = decodedData
-          .map((item) => FocusSession.fromMap(Map<String, dynamic>.from(item)))
-          .toList();
-      
+      _sessions =
+          decodedData
+              .map(
+                (item) => FocusSession.fromMap(Map<String, dynamic>.from(item)),
+              )
+              .toList();
+
       // Sắp xếp theo thời gian bắt đầu, mới nhất lên đầu
       _sessions.sort((a, b) => b.startTime.compareTo(a.startTime));
       notifyListeners();
@@ -40,7 +44,7 @@ class FocusSessionProvider with ChangeNotifier {
   Future<void> _saveSessions() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final List<Map<String, dynamic>> sessionsMap = 
+      final List<Map<String, dynamic>> sessionsMap =
           _sessions.map((session) => session.toMap()).toList();
       await prefs.setString(_storageKey, jsonEncode(sessionsMap));
     } catch (e) {
@@ -56,11 +60,11 @@ class FocusSessionProvider with ChangeNotifier {
       durationMinutes: durationMinutes,
       completed: false,
     );
-    
+
     _sessions.insert(0, newSession); // Thêm vào đầu danh sách
     _saveSessions();
     notifyListeners();
-    
+
     return newSession;
   }
 
@@ -76,10 +80,22 @@ class FocusSessionProvider with ChangeNotifier {
         durationMinutes: session.durationMinutes,
         completed: completed,
       );
-      
+
       _sessions[index] = updatedSession;
       await _saveSessions();
       notifyListeners();
+
+      // Play completion sound if session is completed successfully
+      if (completed) {
+        try {
+          final player = AudioPlayer();
+          await player.play(
+            AssetSource('sounds/completion_sound.mp3'),
+          ); // Replace with your sound file name
+        } catch (e) {
+          debugPrint('Error playing completion sound: $e');
+        }
+      }
     }
   }
 
@@ -101,9 +117,9 @@ class FocusSessionProvider with ChangeNotifier {
   List<FocusSession> getSessionsByDate(DateTime date) {
     return _sessions.where((session) {
       final sessionDate = session.startTime;
-      return sessionDate.year == date.year && 
-             sessionDate.month == date.month && 
-             sessionDate.day == date.day;
+      return sessionDate.year == date.year &&
+          sessionDate.month == date.month &&
+          sessionDate.day == date.day;
     }).toList();
   }
 
