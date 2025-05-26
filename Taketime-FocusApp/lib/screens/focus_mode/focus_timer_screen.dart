@@ -194,6 +194,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
               children: [
                 // Header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Ẩn nút Back khi timer đang chạy (_timer?.isActive)
                     _timer != null && _timer!.isActive
