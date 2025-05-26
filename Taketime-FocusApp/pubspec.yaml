@@ -80,10 +80,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/images/
     - assets/app_intro.jpg
     - assets/avatar.jpg
     - assets/sounds/
-    - assets/google_logo.svg
+    - assets/google_icon.svg
     - assets/facebook_icon.svg
   # To add assets to your application, add an assets section, like this:
   # assets:
