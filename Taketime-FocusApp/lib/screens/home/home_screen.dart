@@ -240,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Thống kê hôm nay',
+                      'Thống kê ngày hôm nay',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             _isLoadingFocusStats
                                 ? '-- phút'
                                 : '${_totalCompletedFocusDurationMinutes} phút', // Hiển thị tổng thời gian hoặc placeholder
-                            'Tổng thời gian hoàn thành', // Label: Tổng thời gian
+                            'Thời gian hoàn thành', // Label: Tổng thời gian
                           ),
                         ),
                       ],
