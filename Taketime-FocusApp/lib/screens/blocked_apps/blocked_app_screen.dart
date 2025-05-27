@@ -905,8 +905,8 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
     }
     
     // Phân loại ứng dụng
+    final List<String> categories = ['Mạng xã hội', 'Giải trí', 'Trò chơi', 'Công việc', 'Học tập', 'Khác', 'Chưa phân loại'];
     String category = app['category'] ?? 'Chưa phân loại';
-    final List<String> categories = ['Mạng xã hội', 'Giải trí', 'Trò chơi', 'Công việc', 'Học tập', 'Khác'];
     
     showDialog(
       context: context,
