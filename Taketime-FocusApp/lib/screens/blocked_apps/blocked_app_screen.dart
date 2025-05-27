@@ -6,6 +6,8 @@ import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'usage_statistics_screen.dart';
+import '../../services/app_blocking_service.dart';
+import '../settings/permission_setup_screen.dart';
 
 class BlockedAppScreen extends StatefulWidget {
   const BlockedAppScreen({super.key});
@@ -24,6 +26,12 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
   // Lưu trữ danh sách các ứng dụng đang chạy
   final Map<String, bool> _isAppRunning = {};
   
+  // Theo dõi các ứng dụng đã được chặn để tránh spam
+  final Map<String, bool> _appAlreadyBlocked = {};
+  
+  // Theo dõi thời gian log cuối cùng để tránh spam log
+  final Map<String, DateTime> _lastLogTime = {};
+  
   // Timer để theo dõi thời gian sử dụng ứng dụng
   Timer? _usageTimer;
   
@@ -35,6 +43,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
     super.initState();
     _loadBlockedApps();
     _startUsageTracking();
+    _checkPermissions(); // Add permission check
     
     // Lưu dữ liệu định kỳ mỗi 1 phút
     _saveDataTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
@@ -47,6 +56,13 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
     _usageTimer?.cancel();
     _saveDataTimer?.cancel();
     _saveUsageData(); // Lưu dữ liệu trước khi đóng màn hình
+    
+    // Stop the blocking service if no apps are being blocked
+    final hasBlockedApps = _blockedApps.any((app) => app['isBlocked'] == true);
+    if (!hasBlockedApps) {
+      AppBlockingService.stopAppBlockingService();
+    }
+    
     super.dispose();
   }
   
@@ -71,49 +87,8 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
           return appData;
         }).toList();
       } else {
-        // Dữ liệu mẫu khi chưa có dữ liệu được lưu trữ
-        _blockedApps = [
-          {
-            'name': 'Facebook',
-            'packageName': 'com.facebook.katana',
-            'icon': 'assets/icons/facebook.png',
-            'color': const Color(0xFF1877F2),
-            'timeLimit': 30,
-            'isBlocked': true,
-            'category': 'Mạng xã hội',
-            'schedules': [],
-          },
-          {
-            'name': 'Instagram',
-            'packageName': 'com.instagram.android',
-            'icon': 'assets/icons/instagram.png',
-            'color': const Color(0xFFE4405F),
-            'timeLimit': 45,
-            'isBlocked': true,
-            'category': 'Mạng xã hội',
-            'schedules': [],
-          },
-          {
-            'name': 'YouTube',
-            'packageName': 'com.google.android.youtube',
-            'icon': 'assets/icons/youtube.png',
-            'color': const Color(0xFFFF0000),
-            'timeLimit': 60,
-            'isBlocked': false,
-            'category': 'Giải trí',
-            'schedules': [],
-          },
-          {
-            'name': 'TikTok',
-            'packageName': 'com.zhiliaoapp.musically',
-            'icon': 'assets/icons/tiktok.png',
-            'color': const Color(0xFF000000),
-            'timeLimit': 20,
-            'isBlocked': true,
-            'category': 'Giải trí',
-            'schedules': [],
-          },
-        ];
+        // Khởi tạo danh sách rỗng khi chưa có dữ liệu được lưu trữ
+        _blockedApps = [];
       }
       
       // Tải dữ liệu thời gian sử dụng
@@ -126,6 +101,43 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
         }
       }
     });
+    
+    // Load real usage data from system after loading blocked apps
+    await _loadRealUsageData();
+  }
+  
+  // Load real usage data from Android Usage Stats API
+  Future<void> _loadRealUsageData() async {
+    try {
+      final permissions = await AppBlockingService.checkAllPermissions();
+      
+      if (permissions['usageStats'] == true) {
+        // Get real usage data from system
+        final allAppsUsage = await AppBlockingService.getAllAppsUsageTime();
+        
+        // Update usage time for our blocked apps with real data
+        for (var app in _blockedApps) {
+          String packageName = app['packageName'];
+          if (allAppsUsage.containsKey(packageName)) {
+            _appUsageTime[packageName] = allAppsUsage[packageName]!;
+          }
+        }
+        
+        // Save updated usage data
+        await _saveUsageData();
+        
+        // Update UI
+        if (mounted) {
+          setState(() {});
+        }
+        
+        print('Real usage data loaded successfully');
+      } else {
+        print('Usage Stats permission not granted, using saved data');
+      }
+    } catch (e) {
+      print('Error loading real usage data: $e');
+    }
   }
   
   // Lưu danh sách ứng dụng bị chặn vào bộ nhớ
@@ -172,34 +184,86 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
     });
   }
   
-  // Kiểm tra các ứng dụng đang chạy
+  // Kiểm tra các ứng dụng đang chạy và cập nhật thời gian sử dụng thực tế
   Future<void> _checkRunningApps() async {
-    // Trong thực tế, cần sử dụng một plugin có khả năng truy cập thông tin ứng dụng đang chạy
-    // Đây là một ví dụ giả định để mô phỏng hành vi
-    
-    for (var app in _blockedApps) {
-      if (_isAppRunning[app['packageName']] == true) {
-        // Tăng thời gian sử dụng lên 1 giây
-        _appUsageTime[app['packageName']] = (_appUsageTime[app['packageName']] ?? 0) + 1;
+    try {
+      // Lấy thời gian sử dụng thực tế từ Usage Stats API
+      final allAppsUsage = await AppBlockingService.getAllAppsUsageTime();
+      
+      for (var app in _blockedApps) {
+        String packageName = app['packageName'];
         
-        // Kiểm tra nếu đã đạt giới hạn thời gian
-        int usageSeconds = _appUsageTime[app['packageName']] ?? 0;
+        // CRITICAL SAFETY CHECK: Never process our own app
+        if (packageName == 'com.example.smartmanagementapp') {
+          print('SAFETY: Skipping our own app from blocking logic');
+          continue;
+        }
+        
+        // Cập nhật thời gian sử dụng thực tế từ system
+        int realUsageSeconds = allAppsUsage[packageName] ?? 0;
+        _appUsageTime[packageName] = realUsageSeconds;
+        
+        // Kiểm tra xem app có đang chạy không
+        bool isCurrentlyRunning = await AppBlockingService.isAppCurrentlyRunning(packageName);
+        _isAppRunning[packageName] = isCurrentlyRunning;
+        
+        // Kiểm tra nếu đã đạt giới hạn thời gian và app đang được bật blocking
         int limitSeconds = app['timeLimit'] * 60;
         
-        if (app['isBlocked'] && usageSeconds >= limitSeconds) {
-          await _blockApp(app);
+        if (app['isBlocked'] && realUsageSeconds >= limitSeconds) {
+          // Kiểm tra xem app đã được chặn chưa để tránh spam
+          bool alreadyBlocked = _appAlreadyBlocked[packageName] ?? false;
+          DateTime? lastLog = _lastLogTime[packageName];
+          DateTime now = DateTime.now();
+          
+          // Chỉ thực hiện blocking và log nếu:
+          // 1. App chưa được chặn trước đó, HOẶC
+          // 2. Đã qua ít nhất 30 giây từ lần log cuối cùng
+          bool shouldBlock = !alreadyBlocked;
+          bool shouldLog = lastLog == null || now.difference(lastLog).inSeconds >= 30;
+          
+          if (shouldLog) {
+            print('App ${app['name']} has exceeded limit: ${realUsageSeconds}s >= ${limitSeconds}s');
+            _lastLogTime[packageName] = now;
+          }
+          
+          if (shouldBlock) {
+            print('BLOCKING: First time blocking ${app['name']} due to limit exceeded');
+            _appAlreadyBlocked[packageName] = true;
+            await _blockApp(app);
+          }
+        } else {
+          // App chưa đạt giới hạn hoặc không được bật blocking, reset trạng thái
+          _appAlreadyBlocked[packageName] = false;
         }
       }
+      
+      // Lưu dữ liệu usage mới
+      await _saveUsageData();
+      
+      // Cập nhật UI để hiển thị thời gian sử dụng mới
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error checking running apps: $e');
+      // Fallback to previous behavior if there's an error
     }
-    
-    // Cập nhật UI để hiển thị thời gian sử dụng mới
-    setState(() {});
   }
   
   // Thực hiện chặn ứng dụng khi đạt đến giới hạn thời gian
   Future<void> _blockApp(Map<String, dynamic> app) async {
-    // Trong thực tế, cần sử dụng một plugin có khả năng chặn/đóng ứng dụng khác
-    // Trên Android, có thể thông qua các dịch vụ nền hoặc Accessibility Service
+    // Check if app blocking service is properly set up
+    final permissions = await AppBlockingService.checkAllPermissions();
+    
+    if (!permissions['accessibility']! || !permissions['usageStats']! || !permissions['overlay']!) {
+      // Show permission setup dialog
+      _showPermissionSetupDialog();
+      return;
+    }
+    
+    // Start the app blocking service if not already running
+    await AppBlockingService.startAppBlockingService();
     
     // Hiển thị cảnh báo khi ứng dụng bị chặn
     _showBlockingAlert(app);
@@ -304,24 +368,135 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // Nút xem thống kê
-                  IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AppUsageStatisticsScreen(),
+                  // Nút xem thống kê và cài đặt quyền
+                  Row(
+                    children: [
+                      // Permission status button
+                      IconButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PermissionSetupScreen(),
+                            ),
+                          );
+                        },
+                        icon: FutureBuilder<Map<String, bool>>(
+                          future: AppBlockingService.checkAllPermissions(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const Icon(Icons.settings, color: Colors.grey);
+                            }
+                            
+                            final allGranted = snapshot.data!.values.every((granted) => granted);
+                            return Icon(
+                              allGranted ? Icons.check_circle : Icons.warning,
+                              color: allGranted ? Colors.green : Colors.orange,
+                            );
+                          },
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.bar_chart,
-                      color: Color(0xFF5E35B1),
-                    ),
-                    tooltip: 'Xem thống kê',
+                        tooltip: 'Kiểm tra quyền',
+                      ),
+                      // Nút xem thống kê
+                      IconButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AppUsageStatisticsScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.bar_chart,
+                          color: Color(0xFF5E35B1),
+                        ),
+                        tooltip: 'Xem thống kê',
+                      ),
+                    ],
                   ),
                 ],
               ),
+            ),
+            
+            // Permission warning banner
+            FutureBuilder<Map<String, bool>>(
+              future: AppBlockingService.checkAllPermissions(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                
+                final permissions = snapshot.data!;
+                final allGranted = permissions.values.every((granted) => granted);
+                
+                if (allGranted) return const SizedBox.shrink();
+                
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade400, Colors.orange.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Cần cấp quyền để chặn ứng dụng',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              'Nhấn icon ⚙️ phía trên để cấp quyền',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PermissionSetupScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        child: Text(
+                          'Cấp ngay',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             
             // Mô tả
@@ -377,42 +552,22 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
               ),
             ),
             
-            // Danh sách ứng dụng
+            // Danh sách ứng dụng hoặc thông báo trống
             Expanded(
-              child: ListView.builder(
-                itemCount: _blockedApps.length,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemBuilder: (context, index) {
-                  final app = _blockedApps[index];
-                  return _buildAppListItem(app);
-                },
-              ),
+              child: _blockedApps.isEmpty 
+                ? _buildEmptyState()
+                : ListView.builder(
+                    itemCount: _blockedApps.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemBuilder: (context, index) {
+                      final app = _blockedApps[index];
+                      return _buildAppListItem(app);
+                    },
+                  ),
             ),
           ],
         ),
       ),
-      // Nút khóa tất cả
-      floatingActionButton: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: FloatingActionButton.extended(
-          onPressed: _showBlockAllDialog,
-          backgroundColor: Theme.of(context).primaryColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-          elevation: 0,
-          icon: const Icon(Icons.lock),
-          label: Text(
-            'Khóa tất cả',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
-            ),
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
   
@@ -462,6 +617,67 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+  
+  // Widget hiển thị trạng thái trống khi chưa có ứng dụng nào được giới hạn
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.apps_outlined,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Chưa có Ứng dụng nào được giới hạn thời gian',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Hãy thực hiện giới hạn thời gian bằng cách nhấn nút thêm ứng dụng.',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                _showAddAppDialog();
+              },
+              icon: const Icon(Icons.add),
+              label: Text(
+                'Thêm ứng dụng',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C5CE7),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -563,6 +779,12 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
                   onChanged: (value) {
                     setState(() {
                       app['isBlocked'] = value;
+                      
+                      // Reset tracking when blocking state changes
+                      String packageName = app['packageName'];
+                      _appAlreadyBlocked[packageName] = false;
+                      _lastLogTime.remove(packageName);
+                      
                       _saveBlockedApps();
                     });
                   },
@@ -738,8 +960,17 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
                       } else {
                         final List<AppInfo> filteredApps = searchQuery.isEmpty
                             ? snapshot.data!
+                                .where((app) => 
+                                  app.packageName != 'com.example.smartmanagementapp' &&
+                                  !app.packageName.startsWith('com.android') &&
+                                  !app.packageName.startsWith('android'))
+                                .toList()
                             : snapshot.data!
-                                .where((app) => app.name.toLowerCase().contains(searchQuery))
+                                .where((app) => 
+                                  app.name.toLowerCase().contains(searchQuery) &&
+                                  app.packageName != 'com.example.smartmanagementapp' &&
+                                  !app.packageName.startsWith('com.android') &&
+                                  !app.packageName.startsWith('android'))
                                 .toList();
                         
                         if (filteredApps.isEmpty) {
@@ -791,6 +1022,20 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               onTap: () {
+                                // SAFETY CHECK: Never allow adding our own app
+                                if (app.packageName == 'com.example.smartmanagementapp') {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Không thể thêm chính ứng dụng này vào danh sách chặn',
+                                        style: GoogleFonts.poppins(),
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+                                
                                 final color = _getColorForApp(app.name);
                                 
                                 // Lưu ứng dụng mới vào danh sách
@@ -1277,52 +1522,150 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
       ),
     );
   }
+
+  // Check required permissions for app blocking
+  Future<void> _checkPermissions() async {
+    final permissions = await AppBlockingService.checkAllPermissions();
+    
+    if (!permissions['accessibility']! || !permissions['usageStats']! || !permissions['overlay']!) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showPermissionSetupDialog();
+      });
+    } else {
+      // Start the app blocking service if all permissions are granted
+      await AppBlockingService.startAppBlockingService();
+    }
+  }
   
-  void _showBlockAllDialog() {
+  // Show permission setup dialog
+  void _showPermissionSetupDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(
-          'Khóa tất cả ứng dụng',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          'Cần cấp quyền',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.orange,
+          ),
         ),
-        content: Text(
-          'Bạn có chắc chắn muốn khóa tất cả các ứng dụng đã chọn?\n\nKhi bật, bạn sẽ không thể sử dụng các ứng dụng này quá thời gian đã đặt.',
-          style: GoogleFonts.poppins(),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Để chặn ứng dụng hiệu quả, bạn cần cấp các quyền sau:',
+              style: GoogleFonts.poppins(),
+            ),
+            const SizedBox(height: 16),
+            _buildPermissionItem(
+              'Accessibility Service',
+              'Để theo dõi và chặn ứng dụng',
+              Icons.accessibility,
+            ),
+            _buildPermissionItem(
+              'Usage Stats',
+              'Để xem thời gian sử dụng ứng dụng',
+              Icons.bar_chart,
+            ),
+            _buildPermissionItem(
+              'Overlay Permission',
+              'Để hiển thị màn hình chặn',
+              Icons.layers,
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Hủy',
+              'Để sau',
               style: GoogleFonts.poppins(color: Colors.grey),
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                for (var app in _blockedApps) {
-                  app['isBlocked'] = true;
-                }
-              });
+            onPressed: () async {
               Navigator.pop(context);
+              await _requestPermissions();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE53935),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              backgroundColor: Theme.of(context).primaryColor,
             ),
             child: Text(
-              'Khóa tất cả',
+              'Cấp quyền',
               style: GoogleFonts.poppins(color: Colors.white),
             ),
           ),
         ],
       ),
     );
+  }
+  
+  // Build permission item widget
+  Widget _buildPermissionItem(String title, String description, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: Theme.of(context).primaryColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Request all required permissions
+  Future<void> _requestPermissions() async {
+    final permissions = await AppBlockingService.checkAllPermissions();
+    
+    if (!permissions['accessibility']!) {
+      await AppBlockingService.requestAccessibilityPermission();
+      await Future.delayed(const Duration(seconds: 1)); // Wait for settings to open
+    }
+    
+    if (!permissions['usageStats']!) {
+      await AppBlockingService.requestUsageStatsPermission();
+      await Future.delayed(const Duration(seconds: 1));
+    }
+    
+    if (!permissions['overlay']!) {
+      await AppBlockingService.requestOverlayPermission();
+      await Future.delayed(const Duration(seconds: 1));
+    }
+    
+    // Show snackbar with instructions
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Vui lòng bật các quyền cần thiết và quay lại ứng dụng',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }

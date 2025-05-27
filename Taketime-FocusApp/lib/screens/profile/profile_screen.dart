@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../screens/blocked_apps/usage_statistics_screen.dart'; // Import cho AppUsageStatisticsScreen
 import '../../screens/main_screen.dart'; // Import cho MainScreen
 import '../../screens/login/login_screen.dart'; // Import cho LoginScreen
+import '../../screens/debug/blocking_debug_screen.dart'; // Import cho BlockingDebugScreen
 import '../../services/auth_service.dart'; // Import AuthService
 
 class ProfileScreen extends StatefulWidget {
@@ -663,6 +664,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   // Có thể thêm các tùy chọn cài đặt khác ở đây
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.bug_report, color: Colors.orange),
+                title: Text('Debug Blocking', style: GoogleFonts.poppins(color: Colors.orange)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BlockingDebugScreen(),
+                    ),
+                  );
                 },
               ),
               ListTile(

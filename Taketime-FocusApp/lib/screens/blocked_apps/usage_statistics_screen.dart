@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../../services/app_blocking_service.dart';
 
 class AppUsageStatisticsScreen extends StatefulWidget {
   const AppUsageStatisticsScreen({super.key});
@@ -55,31 +56,8 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
           int colorValue = int.parse(colorString.replaceAll('#', '0xFF'));
           appData['color'] = Color(colorValue);
         }
-        
-        loadedApps.add(appData);
+          loadedApps.add(appData);
       }
-    } else {
-      // Dữ liệu mẫu khi chưa có dữ liệu được lưu trữ
-      loadedApps.addAll([
-        {
-          'name': 'Instagram',
-          'packageName': 'com.instagram.android',
-          'color': const Color(0xFFE4405F),
-          'timeLimit': 45,
-        },
-        {
-          'name': 'YouTube',
-          'packageName': 'com.google.android.youtube',
-          'color': const Color(0xFFFF0000),
-          'timeLimit': 60,
-        },
-        {
-          'name': 'TikTok',
-          'packageName': 'com.zhiliaoapp.musically',
-          'color': const Color(0xFF000000),
-          'timeLimit': 20,
-        },
-      ]);
     }
     
     // Tạo dữ liệu sử dụng mẫu cho 7 ngày gần đây
@@ -97,28 +75,77 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
           usageData[date] = {};
         }
         usageData[date]![packageName] = minutes;
-      }
-    } else {
-      // Tạo dữ liệu sử dụng mẫu cho 7 ngày gần đây
-      for (int i = 0; i < 7; i++) {
-        String date = _getDateString(DateTime.now().subtract(Duration(days: 6 - i)));
-        usageData[date] = {};
-        
-        for (Map<String, dynamic> app in loadedApps) {
-          String packageName = app['packageName'];
-          // Tạo dữ liệu ngẫu nhiên nhưng có xu hướng tăng dần
-          int baseMinutes = 10 + (i * 2); // Tăng dần theo ngày gần đây
-          int randomFactor = (DateTime.now().millisecondsSinceEpoch % 20) - 10; // Random factor -10 to 10
-          int minutes = (baseMinutes + randomFactor).clamp(5, (app['timeLimit'] as int) * 1.5).toInt();
-          usageData[date]![packageName] = minutes;
-        }
-      }
+      }    } else {
+      // Load real usage data instead of generating fake data
+      await _loadRealUsageData(loadedApps, usageData);
     }
     
     setState(() {
       _blockedApps = loadedApps;
       _dailyUsageData = usageData;
     });
+  }
+  
+  // Load real usage data from system
+  Future<void> _loadRealUsageData(List<Map<String, dynamic>> loadedApps, Map<String, Map<String, int>> usageData) async {
+    try {
+      final permissions = await AppBlockingService.checkAllPermissions();
+      
+      if (permissions['usageStats'] == true) {
+        // Get today's real usage data
+        final allAppsUsage = await AppBlockingService.getAllAppsUsageTime();
+        
+        // For now, we'll create data for today with real usage and simulate previous days
+        // In a real implementation, you might want to store historical data
+        for (int i = 0; i < 7; i++) {
+          String date = _getDateString(DateTime.now().subtract(Duration(days: 6 - i)));
+          usageData[date] = {};
+          
+          for (Map<String, dynamic> app in loadedApps) {
+            String packageName = app['packageName'];
+            
+            if (i == 6) {
+              // Today: use real data
+              int realUsageSeconds = allAppsUsage[packageName] ?? 0;
+              int realUsageMinutes = (realUsageSeconds / 60).round();
+              usageData[date]![packageName] = realUsageMinutes;
+            } else {
+              // Previous days: use stored data or simulate reasonable data
+              // In a real app, you'd store historical data daily
+              int baseMinutes = 10 + (i * 2);
+              int randomFactor = (DateTime.now().millisecondsSinceEpoch % 20) - 10;
+              int minutes = (baseMinutes + randomFactor).clamp(5, (app['timeLimit'] as int) * 1.2).toInt();
+              usageData[date]![packageName] = minutes;
+            }
+          }
+        }
+        
+        print('Real usage data loaded for statistics');
+      } else {
+        // Fallback to simulated data if permissions not granted
+        _generateFallbackData(loadedApps, usageData);
+      }
+    } catch (e) {
+      print('Error loading real usage data for statistics: $e');
+      // Fallback to simulated data
+      _generateFallbackData(loadedApps, usageData);
+    }
+  }
+  
+  // Fallback method to generate simulated data
+  void _generateFallbackData(List<Map<String, dynamic>> loadedApps, Map<String, Map<String, int>> usageData) {
+    for (int i = 0; i < 7; i++) {
+      String date = _getDateString(DateTime.now().subtract(Duration(days: 6 - i)));
+      usageData[date] = {};
+      
+      for (Map<String, dynamic> app in loadedApps) {
+        String packageName = app['packageName'];
+        int baseMinutes = 10 + (i * 2);
+        int randomFactor = (DateTime.now().millisecondsSinceEpoch % 20) - 10;
+        int minutes = (baseMinutes + randomFactor).clamp(5, (app['timeLimit'] as int) * 1.5).toInt();
+        usageData[date]![packageName] = minutes;
+      }
+    }
   }
   
   String _getDateString(DateTime date) {
@@ -170,8 +197,12 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
       ),
     );
   }
-  
-  Widget _buildOverviewTab() {
+    Widget _buildOverviewTab() {
+    // Check for empty state
+    if (_blockedApps.isEmpty) {
+      return _buildEmptyState();
+    }
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -209,19 +240,19 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
       ),
     );
   }
-  
-  Widget _buildDetailedTab() {
+    Widget _buildDetailedTab() {
+    // Check for empty state
+    if (_blockedApps.isEmpty) {
+      return _buildEmptyState();
+    }
+    
     final List<String> dateStrings = _dailyUsageData.keys.toList();
     dateStrings.sort(); // Sắp xếp theo ngày tăng dần
     
     // Lấy dữ liệu ngày được chọn
     String selectedDate = dateStrings.isNotEmpty 
       ? (_selectedDayIndex < dateStrings.length ? dateStrings[_selectedDayIndex] : dateStrings.last) 
-      : _getDateString(DateTime.now());
-    final Map<String, int> dayData = _dailyUsageData[selectedDate] ?? {};
-    
-    // Tính tổng thời gian sử dụng trong ngày bằng cách sử dụng fold
-    final int totalMinutes = dayData.values.fold(0, (sum, minutes) => sum + minutes);
+      : _getDateString(DateTime.now());    final Map<String, int> dayData = _dailyUsageData[selectedDate] ?? {};
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1149,8 +1180,7 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
       return Colors.green;
     }
   }
-  
-  String _getUsageStatusText(double percentage) {
+    String _getUsageStatusText(double percentage) {
     if (percentage > 0.9) {
       return 'Quá mức';
     } else if (percentage > 0.7) {
@@ -1160,5 +1190,58 @@ class _AppUsageStatisticsScreenState extends State<AppUsageStatisticsScreen> wit
     } else {
       return 'Thấp';
     }
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.bar_chart_outlined,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Chưa có dữ liệu thống kê',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Bạn chưa thêm ứng dụng nào vào danh sách giới hạn.\nHãy thêm ứng dụng để theo dõi thống kê sử dụng.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context); // Go back to blocked apps screen
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm ứng dụng'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

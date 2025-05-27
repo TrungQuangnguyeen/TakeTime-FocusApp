@@ -4,8 +4,10 @@
     <!-- Facebook App ID -->
     <string name="facebook_app_id">1159405119166743</string>
     <!-- fb + Facebook App ID -->
-    <string name="fb_login_protocol_scheme">fb1159405119166743</string>
-    <!-- Client Token: Lấy từ Facebook Developers -> Settings -> Advanced -> Client Token -->
+    <string name="fb_login_protocol_scheme">fb1159405119166743</string>    <!-- Client Token: Lấy từ Facebook Developers -> Settings -> Advanced -> Client Token -->
     <!-- Bạn cần tự lấy Client Token từ trang Facebook for Developers và điền vào đây -->
     <string name="facebook_client_token">01f62336e95c3ee85f8167f1a795c073</string>
+    
+    <!-- Accessibility Service Description -->
+    <string name="accessibility_service_description">This service is used to monitor app usage and enforce app blocking limits for better time management.</string>
 </resources>
