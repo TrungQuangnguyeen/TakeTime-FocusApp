@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:collection';
 import '../models/plan_model.dart';
+import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './user_provider.dart';
@@ -146,6 +147,7 @@ class PlanProvider with ChangeNotifier {
         endTime: DateTime(now.year, now.month, now.day, 10, 30),
         note: 'Thảo luận về tiến độ và kế hoạch tiếp theo',
         priority: PlanPriority.high,
+        status: PlanStatus.upcoming,
       ),
     );
 
@@ -157,6 +159,7 @@ class PlanProvider with ChangeNotifier {
         endTime: DateTime(now.year, now.month, now.day, 15, 0),
         note: 'Tổng hợp công việc đã hoàn thành trong tuần',
         priority: PlanPriority.medium,
+        status: PlanStatus.upcoming,
       ),
     );
 
@@ -170,6 +173,7 @@ class PlanProvider with ChangeNotifier {
         endTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 10, 0),
         note: 'Học về state management và Provider',
         priority: PlanPriority.medium,
+        status: PlanStatus.upcoming,
       ),
     );
 
@@ -195,6 +199,7 @@ class PlanProvider with ChangeNotifier {
         ),
         note: 'Chuẩn bị bản trình bày và demo',
         priority: PlanPriority.high,
+        status: PlanStatus.upcoming,
       ),
     );
 
@@ -208,6 +213,7 @@ class PlanProvider with ChangeNotifier {
         endTime: DateTime(nextWeek.year, nextWeek.month, nextWeek.day, 18, 0),
         note: 'Đi chơi với gia đình',
         priority: PlanPriority.low,
+        status: PlanStatus.upcoming,
       ),
     );
 
@@ -598,6 +604,59 @@ class PlanProvider with ChangeNotifier {
       }
     } catch (e, stackTrace) {
       print('[PlanProvider] Error adding task via API (in catch block): $e');
+      print('[PlanProvider] StackTrace: $stackTrace');
+      return false;
+    }
+  }
+
+  // TODO: Implement createTask method to send a POST request to the backend API /api/Task
+  Future<bool> createTask(Plan plan, UserProvider userProvider) async {
+    print('[PlanProvider] createTask called.');
+
+    if (userProvider.currentUser == null ||
+        userProvider.currentUser!.projectId == null) {
+      print(
+        '[PlanProvider] createTask: User not logged in or projectId is null. Aborting task creation.',
+      );
+      return false;
+    }
+
+    // Lấy projectId từ userProvider và gán vào plan object trước khi gửi đi
+    final planWithProjectId = plan.copyWith(
+      projectId: userProvider.currentUser!.projectId,
+    );
+
+    // Gửi yêu cầu POST đến backend API /api/Task với dữ liệu plan.toJson()
+    final url = Uri.parse('${userProvider.baseUrl}/api/Task');
+    print('[PlanProvider] Attempting to create task at URL: $url');
+    print('[PlanProvider] Sending headers: ${userProvider.headers}');
+    print(
+      '[PlanProvider] Sending body: ${jsonEncode(planWithProjectId.toJson())}',
+    );
+
+    try {
+      final response = await http.post(
+        url,
+        headers: userProvider.headers,
+        body: jsonEncode(planWithProjectId.toJson()),
+      );
+
+      print('[PlanProvider] Create Task Status Code: ${response.statusCode}');
+      print('[PlanProvider] Create Task Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('[PlanProvider] Task created successfully via API.');
+        // Sau khi tạo thành công trên backend, fetch lại danh sách plans để cập nhật UI và schedule notifications
+        await fetchPlans(userProvider);
+        return true;
+      } else {
+        print(
+          '[PlanProvider] Failed to create task: ${response.statusCode} ${response.body}',
+        );
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('[PlanProvider] Error creating task via API (in catch block): $e');
       print('[PlanProvider] StackTrace: $stackTrace');
       return false;
     }
