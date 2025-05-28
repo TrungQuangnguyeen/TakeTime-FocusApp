@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:smart_management_app/services/app_blocking_service.dart';
+import '../../services/app_blocking_service.dart';
 
 class BlockingDebugScreen extends StatefulWidget {
   const BlockingDebugScreen({Key? key}) : super(key: key);
