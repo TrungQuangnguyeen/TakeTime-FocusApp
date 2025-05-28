@@ -11,38 +11,39 @@ class AppBlockingService {
   // Comprehensive diagnostic method to check entire blocking system
   static Future<Map<String, dynamic>> runDiagnostics() async {
     _debugLog('Starting comprehensive blocking system diagnostics...');
-    
+
     final diagnostics = <String, dynamic>{};
-    
+
     try {
       // Check all permissions
       _debugLog('Checking permissions...');
-      diagnostics['accessibility_permission'] = await checkAccessibilityPermission();
+      diagnostics['accessibility_permission'] =
+          await checkAccessibilityPermission();
       diagnostics['usage_stats_permission'] = await checkUsageStatsPermission();
       diagnostics['overlay_permission'] = await checkOverlayPermission();
-      
+
       // Check service status
       _debugLog('Checking service status...');
       diagnostics['service_running'] = await isAppBlockingServiceRunning();
-      diagnostics['accessibility_service_enabled'] = await isAccessibilityServiceEnabled();
-      
+      diagnostics['accessibility_service_enabled'] =
+          await isAccessibilityServiceEnabled();
+
       // Check blocked apps data
       _debugLog('Checking blocked apps data...');
       diagnostics['blocked_apps_count'] = await getBlockedAppsCount();
       diagnostics['blocked_apps_data'] = await getBlockedAppsData();
-      
+
       // Check usage monitoring
       _debugLog('Checking usage monitoring...');
       diagnostics['usage_monitoring_active'] = await isUsageMonitoringActive();
       diagnostics['current_foreground_app'] = await getCurrentForegroundApp();
-      
+
       // Test overlay functionality
       _debugLog('Testing overlay functionality...');
       diagnostics['overlay_test_result'] = await testOverlayDisplay();
-      
+
       _debugLog('Diagnostics completed successfully');
       return diagnostics;
-      
     } catch (e) {
       _debugLog('Error during diagnostics: $e');
       diagnostics['error'] = e.toString();
@@ -65,7 +66,9 @@ class AppBlockingService {
   // Check if accessibility service is enabled in system settings
   static Future<bool> isAccessibilityServiceEnabled() async {
     try {
-      final result = await _channel.invokeMethod('isAccessibilityServiceEnabled');
+      final result = await _channel.invokeMethod(
+        'isAccessibilityServiceEnabled',
+      );
       _debugLog('Accessibility service enabled: $result');
       return result ?? false;
     } catch (e) {
@@ -90,7 +93,7 @@ class AppBlockingService {
   static Future<List<Map<String, dynamic>>> getBlockedAppsData() async {
     try {
       final result = await _channel.invokeMethod('getBlockedAppsData');
-      final List<Map<String, dynamic>> blockedApps = 
+      final List<Map<String, dynamic>> blockedApps =
           (result as List?)?.cast<Map<String, dynamic>>() ?? [];
       _debugLog('Blocked apps data: $blockedApps');
       return blockedApps;
@@ -139,7 +142,9 @@ class AppBlockingService {
   // Force trigger blocking for testing (for specific app)
   static Future<bool> forceBlockApp(String packageName) async {
     try {
-      final result = await _channel.invokeMethod('forceBlockApp', {'packageName': packageName});
+      final result = await _channel.invokeMethod('forceBlockApp', {
+        'packageName': packageName,
+      });
       _debugLog('Force block app $packageName result: $result');
       return result ?? false;
     } catch (e) {
@@ -152,7 +157,7 @@ class AppBlockingService {
   static Future<Map<String, dynamic>> getUsageStatsDebug() async {
     try {
       final result = await _channel.invokeMethod('getUsageStatsDebug');
-      final Map<String, dynamic> usageStats = 
+      final Map<String, dynamic> usageStats =
           (result as Map?)?.cast<String, dynamic>() ?? {};
       _debugLog('Usage stats debug: $usageStats');
       return usageStats;
@@ -212,7 +217,9 @@ class AppBlockingService {
   // Check if accessibility permission is granted
   static Future<bool> checkAccessibilityPermission() async {
     try {
-      final result = await _channel.invokeMethod('checkAccessibilityPermission');
+      final result = await _channel.invokeMethod(
+        'checkAccessibilityPermission',
+      );
       return result ?? false;
     } catch (e) {
       print('Error checking accessibility permission: $e');
@@ -223,7 +230,9 @@ class AppBlockingService {
   // Request accessibility permission
   static Future<bool> requestAccessibilityPermission() async {
     try {
-      final result = await _channel.invokeMethod('requestAccessibilityPermission');
+      final result = await _channel.invokeMethod(
+        'requestAccessibilityPermission',
+      );
       return result ?? false;
     } catch (e) {
       print('Error requesting accessibility permission: $e');
@@ -315,10 +324,13 @@ class AppBlockingService {
     final permissions = await checkAllPermissions();
     return permissions.values.every((granted) => granted);
   }
+
   // Get detailed accessibility service debug info
   static Future<Map<String, dynamic>> getAccessibilityDebugInfo() async {
     try {
-      final result = await _channel.invokeMethod('checkAccessibilityPermissionDetailed');
+      final result = await _channel.invokeMethod(
+        'checkAccessibilityPermissionDetailed',
+      );
       return Map<String, dynamic>.from(result ?? {});
     } catch (e) {
       print('Error getting accessibility debug info: $e');
@@ -343,14 +355,16 @@ class AppBlockingService {
   static Future<Map<String, int>> getAllAppsUsageTime() async {
     try {
       final result = await _channel.invokeMethod('getAllAppsUsageStats');
-      final Map<String, dynamic> resultMap = Map<String, dynamic>.from(result ?? {});
-      
+      final Map<String, dynamic> resultMap = Map<String, dynamic>.from(
+        result ?? {},
+      );
+
       // Convert dynamic values to int
       final Map<String, int> usageMap = {};
       resultMap.forEach((key, value) {
         usageMap[key] = (value as num).toInt();
       });
-      
+
       return usageMap;
     } catch (e) {
       print('Error getting all apps usage time: $e');
@@ -381,6 +395,50 @@ class AppBlockingService {
     } catch (e) {
       print('Error resetting app usage time: $e');
       return false;
+    }
+  }
+
+  // Get usage time for a specific date range (in minutes)
+  static Future<Map<String, int>> getUsageTimeForDateRange(
+    DateTime startTime,
+    DateTime endTime,
+  ) async {
+    _debugLog('Getting usage time for date range: $startTime to $endTime');
+    try {
+      // Convert DateTime to milliseconds since epoch
+      final int startTimeMillis = startTime.millisecondsSinceEpoch;
+      final int endTimeMillis = endTime.millisecondsSinceEpoch;
+
+      final result = await _channel.invokeMethod('getUsageTimeForDateRange', {
+        'startTime': startTimeMillis,
+        'endTime': endTimeMillis,
+      });
+
+      // The native side returns Map<String, String> where value is usage time in milliseconds as String
+      final Map<String, String> usageStatsString =
+          (result as Map?)?.cast<String, String>() ?? {};
+
+      // Convert milliseconds string to minutes int
+      final Map<String, int> usageStatsMinutes = {};
+      usageStatsString.forEach((packageName, usageMsString) {
+        try {
+          final int usageMs = int.parse(usageMsString);
+          final int usageMinutes =
+              (usageMs / (1000 * 60)).round(); // Convert ms to minutes, round
+          if (usageMinutes > 0) {
+            // Only include apps with usage > 0 minutes
+            usageStatsMinutes[packageName] = usageMinutes;
+          }
+        } catch (e) {
+          _debugLog('Error parsing usage time for $packageName: $e');
+        }
+      });
+
+      _debugLog('Got usage time for date range: $usageStatsMinutes');
+      return usageStatsMinutes;
+    } catch (e) {
+      _debugLog('Error getting usage time for date range: $e');
+      return {}; // Return empty map on error
     }
   }
 }

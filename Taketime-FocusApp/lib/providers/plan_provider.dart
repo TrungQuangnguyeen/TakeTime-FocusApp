@@ -622,23 +622,34 @@ class PlanProvider with ChangeNotifier {
     }
 
     // Lấy projectId từ userProvider và gán vào plan object trước khi gửi đi
-    final planWithProjectId = plan.copyWith(
+    // Tính toán reminderTime (10 phút trước deadline)
+    final calculatedReminderTime = plan.endTime.subtract(
+      const Duration(minutes: 10),
+    );
+
+    // Tạo bản sao của plan với projectId, reminderTime đã tính toán và trạng thái mặc định là upcoming
+    final planWithFullData = plan.copyWith(
+      id: '', // ID sẽ được backend tạo, gửi rỗng hoặc null
       projectId: userProvider.currentUser!.projectId,
+      reminderTime: calculatedReminderTime,
+      status: PlanStatus.upcoming, // Trạng thái mặc định khi tạo mới
+      isCompleted: false, // Mặc định chưa hoàn thành
     );
 
     // Gửi yêu cầu POST đến backend API /api/Task với dữ liệu plan.toJson()
     final url = Uri.parse('${userProvider.baseUrl}/api/Task');
     print('[PlanProvider] Attempting to create task at URL: $url');
     print('[PlanProvider] Sending headers: ${userProvider.headers}');
+    // Sử dụng planWithFullData để tạo body, đảm bảo các trường mới được bao gồm
     print(
-      '[PlanProvider] Sending body: ${jsonEncode(planWithProjectId.toJson())}',
+      '[PlanProvider] Sending body: ${jsonEncode(planWithFullData.toJson())}',
     );
 
     try {
       final response = await http.post(
         url,
         headers: userProvider.headers,
-        body: jsonEncode(planWithProjectId.toJson()),
+        body: jsonEncode(planWithFullData.toJson()),
       );
 
       print('[PlanProvider] Create Task Status Code: ${response.statusCode}');

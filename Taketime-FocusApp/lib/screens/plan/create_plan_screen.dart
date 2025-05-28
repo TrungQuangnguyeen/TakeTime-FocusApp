@@ -86,56 +86,6 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         return;
       }
 
-      String? userProjectId = currentUser.projectId;
-
-      // Bước 1: Lấy projectId nếu chưa có (KHÔNG tự tạo project ở Flutter nữa)
-      if (userProjectId == null) {
-        final projectApiUrl = '${userProvider.baseUrl}/api/Project';
-        final response = await http.get(
-          Uri.parse(projectApiUrl),
-          headers: userProvider.headers,
-        );
-        if (response.statusCode == 200) {
-          final List projects = jsonDecode(response.body);
-          if (projects.isNotEmpty) {
-            userProjectId = projects[0]['project_id'];
-            userProvider.updateCurrentUser(
-              currentUser.copyWith(projectId: userProjectId),
-            );
-          } else {
-            TopNotification.show(
-              context,
-              message: 'Không lấy được Project ID.',
-              backgroundColor: Colors.red,
-              icon: Icons.error,
-            );
-            return;
-          }
-        } else {
-          TopNotification.show(
-            context,
-            message: 'Lỗi lấy Project: \\${response.statusCode}',
-            backgroundColor: Colors.red,
-            icon: Icons.error,
-          );
-          return;
-        }
-      }
-
-      // Đảm bảo có userProjectId trước khi tạo Task
-      if (userProjectId == null) {
-        print(
-          '[CreatePlanScreen] userProjectId is still null after checking/creation. Aborting Task creation.',
-        );
-        TopNotification.show(
-          context,
-          message: 'Lỗi: Không có Project ID để tạo kế hoạch.',
-          backgroundColor: Colors.red,
-          icon: Icons.error,
-        );
-        return;
-      }
-
       // Nếu đang chỉnh sửa task
       if (_isEditing) {
         print('[CreatePlanScreen] Updating existing task...');
@@ -185,21 +135,24 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         return; // Kết thúc hàm sau khi xử lý cập nhật
       }
 
-      // Nếu đang tạo task mới, sử dụng addTaskApi
-      print('[CreatePlanScreen] Creating new task using addTaskApi...');
+      // Nếu đang tạo task mới, sử dụng createTask
+      print('[CreatePlanScreen] Creating new task using createTask...');
 
       final newTask = Plan(
-        id: const Uuid().v4(), // Tạo một ID tạm thời (backend sẽ tạo ID thật)
+        // Không cần tạo ID tạm thời ở đây nữa, backend sẽ tạo
+        id: '', // Gửi rỗng hoặc null, tùy backend yêu cầu
         title: _titleController.text.trim(),
         startTime: _startTime,
         endTime: _endTime,
         note: _noteController.text.trim(),
         priority: _priority,
-        // Status và isCompleted sẽ được xử lý bởi backend hoặc logic fetch
+        status: PlanStatus.upcoming,
+        // project_id, reminderTime, status, isCompleted sẽ được xử lý bởi createTask và backend
       );
 
-      // Gọi phương thức addTaskApi trong PlanProvider
-      bool success = await planProvider.addTaskApi(newTask, userProvider);
+      // Gọi phương thức createTask trong PlanProvider
+      // Thay thế addTaskApi bằng createTask
+      bool success = await planProvider.createTask(newTask, userProvider);
 
       if (success) {
         TopNotification.show(
@@ -210,9 +163,9 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         );
         Navigator.pop(context); // Đóng màn hình sau khi tạo thành công
       } else {
-        // Lỗi đã được xử lý và hiển thị trong addTaskApi
-        print('[CreatePlanScreen] Failed to create task via addTaskApi.');
-        // Thông báo lỗi đã hiển thị từ addTaskApi, không cần hiển thị lại ở đây
+        // Lỗi đã được xử lý và hiển thị trong createTask
+        print('[CreatePlanScreen] Failed to create task via createTask.');
+        // Thông báo lỗi đã hiển thị từ createTask, không cần hiển thị lại ở đây
       }
 
       // TODO: Consider adding a finally block here to hide loading indicator

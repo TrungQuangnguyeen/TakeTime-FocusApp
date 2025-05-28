@@ -25,7 +25,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
     private val blockedPackages = mutableSetOf<String>()
     private val usageTime = mutableMapOf<String, Long>() // Usage time in milliseconds for today
     private val timeLimit = mutableMapOf<String, Int>() // in minutes
-    private val lastOpenTime = mutableMapOf<String, Long>() 
+    private val lastOpenTime = mutableMapOf<String, Long>()
     private var isEnabled = false
     
     // SAFETY: Define our own package name as a constant to prevent typos
@@ -41,7 +41,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
         // Configure service
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or 
-                         AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                        AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
             notificationTimeout = 100
@@ -73,7 +73,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
                 
                 // Filter out non-activity window changes and system packages/our own app
                 if (packageName != null && className != null &&
-                    packageName != OWN_PACKAGE_NAME &&
+                    packageName != OWN_PACKAGE_NAME && 
                     !packageName.startsWith("com.android") &&
                     !packageName.startsWith("android") &&
                     !packageName.contains("launcher")) {
@@ -192,7 +192,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
             val startTime = calendar.timeInMillis
             val endTime = System.currentTimeMillis()
 
-            val stats = usageStatsManager.queryUsageStats(
+                    val stats = usageStatsManager.queryUsageStats(
                 UsageStatsManager.INTERVAL_DAILY, startTime, endTime
             )
 
@@ -213,15 +213,45 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
         }
     }
 
+    // New public method to get usage stats for a specific date range
+    // This will be called from MainActivity via MethodChannel
+    fun getUsageTimeForDateRange(startTime: Long, endTime: Long): Map<String, Long> {
+        Log.d(TAG, "DEBUG USAGE: Querying usage for date range: $startTime to $endTime.")
+        val usageStatsMap = mutableMapOf<String, Long>()
+        try {
+            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+
+            val stats = usageStatsManager.queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY, startTime, endTime
+            )
+
+            if (stats != null) {
+                for (usageStat in stats) {
+                    // Only include packages that have some usage time
+                    if (usageStat.totalTimeInForeground > 0) {
+                         usageStatsMap[usageStat.packageName] = usageStat.totalTimeInForeground
+                         Log.d(TAG, "DEBUG USAGE: Found usage for ${usageStat.packageName}: ${usageStat.totalTimeInForeground} ms in range.")
+                    }
+                }
+            }
+             Log.d(TAG, "DEBUG USAGE: Finished querying usage for date range. Found ${usageStatsMap.size} packages with usage.")
+            return usageStatsMap
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting usage stats for date range: ${e.message}", e)
+            return emptyMap()
+        }
+    }
+
     // Helper to check usage and block if over limit
     private fun checkAndBlockIfOverLimit(packageName: String) {
         Log.d(TAG, "DEBUG CHECK: Checking and potentially blocking $packageName.")
         // Ensure package is in our blocked list
         if (!blockedPackages.contains(packageName)) {
              Log.d(TAG, "DEBUG CHECK: $packageName not in blocked list. No blocking.")
-             return
+            return
         }
-
+        
         // Get latest usage time (either from map or a quick query)
         val currentUsageMs = getUsageStatsForPackageToday(packageName) // Query on demand for immediate check
         val timeLimitMinutes = timeLimit[packageName] ?: 0
@@ -231,7 +261,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
 
         if (timeLimitMinutes > 0 && currentUsageMs >= timeLimitMs) {
             Log.d(TAG, "DEBUG CHECK: App $packageName is over limit. Blocking.")
-            blockApp(packageName)
+                blockApp(packageName)
         } else {
             Log.d(TAG, "DEBUG CHECK: App $packageName is within limit.")
         }
@@ -249,13 +279,13 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
                 }
                 jsonArray.put(jsonObject.toString())
             }
-
+            
             sharedPrefs.edit()
                 .putString("flutter.app_usage_time", jsonArray.toString())
                 .apply()
-
+                
             Log.d(TAG, "DEBUG SAVE: Usage time saved successfully.")
-
+                
         } catch (e: Exception) {
             Log.e(TAG, "Error saving usage time: ${e.message}", e)
         }
@@ -303,7 +333,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
             // sendBlockingNotificationToFlutter(packageName)
 
             Log.d(TAG, "DEBUG BLOCK: Successfully started blocking activity for: $packageName")
-
+            
         } catch (e: Exception) {
             Log.e(TAG, "DEBUG BLOCK: Error starting blocking activity for app $packageName: ${e.message}", e)
         }

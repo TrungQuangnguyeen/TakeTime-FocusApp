@@ -118,6 +118,48 @@ class MainActivity : FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "Usage time JSON is required", null)
                     }
                 }
+                // Add MethodChannel to get usage time for a specific date range
+                "getUsageTimeForDateRange" -> {
+                    val startTime = call.argument<Long>("startTime")
+                    val endTime = call.argument<Long>("endTime")
+                    if (startTime != null && endTime != null) {
+                        // Get instance of AppBlockingService (requires some way to access service instance)
+                        // As a workaround, we can make getUsageTimeForDateRange static or access it differently
+                        // For simplicity in this edit, let's assume we can get the service instance.
+                        // In a real app, you might use a Singleton or bind to the service.
+                        
+                        // WORKAROUND: Assuming a way to get the service instance. Replace with actual logic.
+                        // For example, if you have a static instance or a binder.
+                        // val service = AppBlockingService.getInstance() // Example static access
+                        
+                        // For now, let's assume we can directly query here if needed,
+                        // or the service exposes a way to be called.
+                        
+                        // Since this method is in MainActivity, it's better to query usage stats directly here
+                        // rather than calling the service instance, which might not be readily available.
+                        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+
+                        val stats = usageStatsManager.queryUsageStats(
+                            UsageStatsManager.INTERVAL_DAILY, startTime, endTime
+                        )
+
+                        val resultMap = mutableMapOf<String, Long>()
+                        if (stats != null) {
+                             for (usageStat in stats) {
+                                // Only include packages with usage time
+                                if (usageStat.totalTimeInForeground > 0) {
+                                  resultMap[usageStat.packageName] = usageStat.totalTimeInForeground
+                                }
+                             }
+                        }
+                        // Convert Long values to String to avoid potential issues with MethodChannel
+                        val resultStringMap = resultMap.mapValues { it.value.toString() }
+                        result.success(resultStringMap)
+
+                    } else {
+                        result.error("INVALID_ARGUMENT", "startTime and endTime are required", null)
+                    }
+                }
                 // Debug methods
                 "isAppBlockingServiceRunning" -> {
                     val isRunning = isAppBlockingServiceRunning()
