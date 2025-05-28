@@ -71,11 +71,11 @@ class _AppInitializerState extends State<AppInitializer> {
     _initAuth();
   }
 
+  //xử lý auth
   Future<void> _initAuth() async {
     final authService = AuthService();
     final accessToken = await authService.getAccessToken();
     if (accessToken != null && mounted) {
-      // Truyền accessToken thuần, không làm sạch, không thêm Bearer
       Provider.of<UserProvider>(
         context,
         listen: false,

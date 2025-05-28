@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:collection';
 import '../models/plan_model.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './user_provider.dart';

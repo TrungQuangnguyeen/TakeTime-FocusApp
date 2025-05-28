@@ -31,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _randomMessages = [
     'Chúc bạn một ngày làm việc hiệu quả!',
     'Tập trung cao độ để đạt mục tiêu nhé!',
-    'Hãy biến hôm nay thành một ngày tuyệt vời!',
     'Luôn giữ năng lượng tích cực nha!',
     'Mọi nỗ lực của bạn sẽ được đền đáp!',
     'Một ngày mới, những cơ hội mới!',

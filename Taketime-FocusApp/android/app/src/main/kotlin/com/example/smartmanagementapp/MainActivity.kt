@@ -98,6 +98,26 @@ class MainActivity : FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "Package name is required", null)
                     }
                 }
+                // Add method to update blocked apps list and time limits from Flutter
+                "updateBlockedApps" -> {
+                    val blockedAppsJson = call.argument<String>("blockedAppsJson")
+                    if (blockedAppsJson != null) {
+                        val success = updateBlockedAppsData(blockedAppsJson)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "Blocked apps JSON is required", null)
+                    }
+                }
+                // Add method to update app usage time from Flutter
+                "updateAppUsageTime" -> {
+                    val usageTimeJson = call.argument<String>("usageTimeJson")
+                    if (usageTimeJson != null) {
+                        val success = updateAppUsageTimeData(usageTimeJson)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "Usage time JSON is required", null)
+                    }
+                }
                 // Debug methods
                 "isAppBlockingServiceRunning" -> {
                     val isRunning = isAppBlockingServiceRunning()
@@ -695,6 +715,42 @@ class MainActivity : FlutterActivity() {
             return true
         } catch (e: Exception) {
             println("Error clearing service logs: ${e.message}")
+            return false
+        }
+    }
+
+    // Method to update blocked apps data in SharedPreferences
+    private fun updateBlockedAppsData(blockedAppsJson: String): Boolean {
+        try {
+            val sharedPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            // Store the raw JSON string received from Flutter
+            sharedPrefs.edit().putString("flutter.blocked_apps", blockedAppsJson).apply()
+            // Log for debugging
+            println("DEBUG: Updated blocked apps data in SharedPreferences: $blockedAppsJson")
+            // Note: AppBlockingService needs to reload this data after update
+            // This might require restarting the service or sending a broadcast
+            // For now, we just update the prefs. Reload logic needs to be in service.
+            return true
+        } catch (e: Exception) {
+            println("DEBUG: Error updating blocked apps data: ${e.message}")
+            return false
+        }
+    }
+
+    // Method to update app usage time data in SharedPreferences
+    private fun updateAppUsageTimeData(usageTimeJson: String): Boolean {
+        try {
+            val sharedPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            // Store the raw JSON string received from Flutter
+            sharedPrefs.edit().putString("flutter.app_usage_time", usageTimeJson).apply()
+             // Log for debugging
+            println("DEBUG: Updated usage time data in SharedPreferences: $usageTimeJson")
+            // Note: AppBlockingService needs to reload this data after update
+            // This might require restarting the service or sending a broadcast
+            // For now, we just update the prefs. Reload logic needs to be in service.
+            return true
+        } catch (e: Exception) {
+            println("DEBUG: Error updating usage time data: ${e.message}")
             return false
         }
     }
