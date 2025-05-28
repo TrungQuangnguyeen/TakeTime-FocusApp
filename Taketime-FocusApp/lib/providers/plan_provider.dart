@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:collection';
 import '../models/plan_model.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './user_provider.dart';
 import '../services/notification_service.dart';
-import 'dart:developer' as developer;
 
 class PlanProvider with ChangeNotifier {
   final List<Plan> _plans = [];
@@ -132,104 +130,6 @@ class PlanProvider with ChangeNotifier {
         _plans[i] = plan.copyWith(status: PlanStatus.inProgress);
       }
     }
-  }
-
-  // Add sample plans for testing
-  void _addSamplePlans() {
-    final now = DateTime.now();
-
-    // Today's plans
-    addPlan(
-      Plan(
-        id: '1',
-        title: 'Họp nhóm dự án',
-        startTime: DateTime(now.year, now.month, now.day, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day, 10, 30),
-        note: 'Thảo luận về tiến độ và kế hoạch tiếp theo',
-        priority: PlanPriority.high,
-        status: PlanStatus.upcoming,
-      ),
-    );
-
-    addPlan(
-      Plan(
-        id: '2',
-        title: 'Gửi báo cáo hằng tuần',
-        startTime: DateTime(now.year, now.month, now.day, 14, 0),
-        endTime: DateTime(now.year, now.month, now.day, 15, 0),
-        note: 'Tổng hợp công việc đã hoàn thành trong tuần',
-        priority: PlanPriority.medium,
-        status: PlanStatus.upcoming,
-      ),
-    );
-
-    // Tomorrow's plans
-    final tomorrow = now.add(const Duration(days: 1));
-    addPlan(
-      Plan(
-        id: '3',
-        title: 'Học Flutter',
-        startTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0),
-        endTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 10, 0),
-        note: 'Học về state management và Provider',
-        priority: PlanPriority.medium,
-        status: PlanStatus.upcoming,
-      ),
-    );
-
-    // Day after tomorrow
-    final dayAfterTomorrow = now.add(const Duration(days: 2));
-    addPlan(
-      Plan(
-        id: '4',
-        title: 'Xem lại tiến độ dự án',
-        startTime: DateTime(
-          dayAfterTomorrow.year,
-          dayAfterTomorrow.month,
-          dayAfterTomorrow.day,
-          13,
-          0,
-        ),
-        endTime: DateTime(
-          dayAfterTomorrow.year,
-          dayAfterTomorrow.month,
-          dayAfterTomorrow.day,
-          14,
-          30,
-        ),
-        note: 'Chuẩn bị bản trình bày và demo',
-        priority: PlanPriority.high,
-        status: PlanStatus.upcoming,
-      ),
-    );
-
-    // Next week
-    final nextWeek = now.add(const Duration(days: 7));
-    addPlan(
-      Plan(
-        id: '5',
-        title: 'Nghỉ ngơi',
-        startTime: DateTime(nextWeek.year, nextWeek.month, nextWeek.day, 10, 0),
-        endTime: DateTime(nextWeek.year, nextWeek.month, nextWeek.day, 18, 0),
-        note: 'Đi chơi với gia đình',
-        priority: PlanPriority.low,
-        status: PlanStatus.upcoming,
-      ),
-    );
-
-    // Completed plan
-    addPlan(
-      Plan(
-        id: '6',
-        title: 'Hoàn thành thiết kế UI',
-        startTime: DateTime(now.year, now.month, now.day - 1, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day - 1, 12, 0),
-        note: 'Thiết kế UI cho ứng dụng quản lý thời gian',
-        priority: PlanPriority.high,
-        isCompleted: true,
-        status: PlanStatus.completed,
-      ),
-    );
   }
 
   // Hàm fetch danh sách Task từ backend (nhận UserProvider instance)
@@ -412,7 +312,6 @@ class PlanProvider with ChangeNotifier {
     }
 
     final startTime = plan.startTime;
-    final endTime = plan.endTime;
 
     // 1. Thông báo 30 phút trước Timestart
     final thirtyMinBeforeStart = startTime.subtract(

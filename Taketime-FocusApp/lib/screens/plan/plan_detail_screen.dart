@@ -21,7 +21,6 @@ class PlanDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final planProvider = Provider.of<PlanProvider>(context);
 
     // Format dates and times
     final dateFormatter = DateFormat.yMMMMd();

@@ -126,7 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final planProvider = Provider.of<PlanProvider>(context);
 
     // Hiển thị màn hình loading nếu dữ liệu đang được tải
     if (_isDataLoading) {

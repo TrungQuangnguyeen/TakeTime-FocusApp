@@ -18,20 +18,26 @@ class FocusModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return InkWell(
       onTap: () => onSelect(minutes),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? theme.colorScheme.primary.withOpacity(0.2)
-              : isDark ? Colors.grey[850] : Colors.white,
+          color:
+              isSelected
+                  ? theme.colorScheme.primary.withOpacity(0.2)
+                  : isDark
+                  ? Colors.grey[850]
+                  : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? theme.colorScheme.primary
-                : isDark ? Colors.grey[700]! : Colors.grey[300]!,
+            color:
+                isSelected
+                    ? theme.colorScheme.primary
+                    : isDark
+                    ? Colors.grey[700]!
+                    : Colors.grey[300]!,
             width: 2,
           ),
         ),

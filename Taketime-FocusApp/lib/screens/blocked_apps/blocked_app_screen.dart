@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'usage_statistics_screen.dart';
 import '../../services/app_blocking_service.dart';
 import '../settings/permission_setup_screen.dart';
 

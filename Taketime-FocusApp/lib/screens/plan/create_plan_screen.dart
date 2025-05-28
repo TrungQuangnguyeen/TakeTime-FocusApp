@@ -4,9 +4,6 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 import '../../models/plan_model.dart';
 import '../../providers/plan_provider.dart';

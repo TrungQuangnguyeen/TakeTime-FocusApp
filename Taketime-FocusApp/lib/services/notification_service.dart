@@ -1,9 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
-import 'package:flutter/material.dart'; // Import Material for context or other uses if needed
 import 'package:rxdart/rxdart.dart'; // For handling notification taps
-import 'dart:developer' as developer;
 
 // Helper class to handle notification taps globally
 final BehaviorSubject<String?> selectNotificationSubject =

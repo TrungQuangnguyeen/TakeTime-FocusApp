@@ -4,12 +4,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../screens/blocked_apps/usage_statistics_screen.dart'; // Import cho AppUsageStatisticsScreen
-import '../../screens/main_screen.dart'; // Import cho MainScreen
-import '../../screens/login/login_screen.dart'; // Import cho LoginScreen
-import '../../screens/debug/blocking_debug_screen.dart'; // Import cho BlockingDebugScreen
 import '../settings/permission_setup_screen.dart'; // Sửa đường dẫn import cho PermissionSetupScreen
 import '../../services/auth_service.dart'; // Import AuthService
 import '../../services/app_blocking_service.dart'; // Import AppBlockingService
@@ -33,7 +29,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userEmail = "Đang tải..."; // Giá trị mặc định
   String? _avatarUrl; // Thêm để lưu URL avatar từ Supabase
   File? _profileImage; // Giữ lại để xử lý avatar local
-  final ImagePicker _picker = ImagePicker();
   bool _isLoadingProfile = true;
 
   // Dữ liệu cho biểu đồ tròn (từ usage_statistics_screen.dart)
@@ -104,48 +99,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
-  }
-
-  // Hàm lưu đường dẫn ảnh đại diện
-  Future<void> _saveProfileImagePath(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('profile_image_path', path);
-  }
-
-  // Hàm chụp ảnh mới
-  Future<void> _takePhoto() async {
-    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-    if (photo != null) {
-      setState(() {
-        _profileImage = File(photo.path);
-      });
-      await _saveProfileImagePath(photo.path);
-      Navigator.pop(context);
-    }
-  }
-
-  // Hàm chọn ảnh từ thư viện
-  Future<void> _pickImageFromGallery() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _profileImage = File(image.path);
-      });
-      await _saveProfileImagePath(image.path);
-      Navigator.pop(context);
-    }
-  }
-
-  // Hàm lưu thông tin người dùng
-  Future<void> _saveUserData(String name, String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', name);
-    await prefs.setString('user_email', email);
-
-    setState(() {
-      _userName = name;
-      _userEmail = email;
-    });
   }
 
   // Thêm hàm tải dữ liệu sử dụng cho biểu đồ tròn (chỉ cho ngày hôm nay)
@@ -906,25 +859,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       // App Bar
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          // Back Button - Sửa để quay về trang chính
-                          IconButton(
-                            onPressed: () {
-                              if (Navigator.canPop(context)) {
-                                Navigator.pop(context);
-                              } else {
-                                // Trường hợp không có màn hình nào để pop, có thể điều hướng đến MainScreen
-                                // hoặc xử lý theo logic của ứng dụng.
-                                // Ví dụ: Navigator.of(context).pushReplacement(...);
-                              }
-                            },
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                            ),
-                          ),
-                          // Edit, Settings, và nút kiểm tra quyền
+                          // Settings, và nút kiểm tra quyền
                           Row(
                             children: [
                               IconButton(
@@ -1112,146 +1049,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildStat(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerticalDivider() {
-    return Container(
-      height: 30,
-      width: 1,
-      color: Colors.white.withOpacity(0.3),
-    );
-  }
-
-  void _showEditProfileDialog(BuildContext context) {
-    final TextEditingController nameController = TextEditingController(
-      text: _isLoadingProfile ? "" : _userName,
-    );
-    final TextEditingController emailController = TextEditingController(
-      text: _isLoadingProfile ? "" : _userEmail,
-    );
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              'Chỉnh sửa thông tin',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage:
-                        _profileImage != null
-                            ? FileImage(_profileImage!)
-                            : const AssetImage('assets/avatar.jpg')
-                                as ImageProvider,
-                    child: Align(
-                      alignment: Alignment.bottomRight,
-                      child: CircleAvatar(
-                        radius: 15,
-                        backgroundColor: Colors.blue,
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.white,
-                          size: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Họ và tên',
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    readOnly:
-                        true, // Email thường không cho sửa trực tiếp, lấy từ Supabase Auth
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Hủy', style: GoogleFonts.poppins()),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // Chỉ lưu tên nếu email là read-only
-                  _saveUserData(nameController.text, _userEmail);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Cập nhật thông tin thành công',
-                        style: GoogleFonts.poppins(),
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: Text('Lưu', style: GoogleFonts.poppins()),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showChangePhotoOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder:
-          (context) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: Text('Chụp ảnh mới', style: GoogleFonts.poppins()),
-                onTap: _takePhoto,
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: Text('Chọn từ thư viện', style: GoogleFonts.poppins()),
-                onTap: _pickImageFromGallery,
-              ),
-            ],
-          ),
     );
   }
 
