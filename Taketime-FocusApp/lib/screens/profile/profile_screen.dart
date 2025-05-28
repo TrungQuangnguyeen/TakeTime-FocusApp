@@ -445,11 +445,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     flex: 1,
                     child: AspectRatio(
-                      aspectRatio: 1, // Tỷ lệ 1:1 cho hình tròn
+                      aspectRatio: 0.9,
                       child: PieChart(
                         PieChartData(
                           sectionsSpace: 2,
-                          centerSpaceRadius: 40,
+                          centerSpaceRadius: 30,
                           sections: sections,
                           pieTouchData: PieTouchData(
                             enabled: false,
@@ -463,16 +463,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Chú thích bên phải - Hiển thị giống với thiết kế mẫu
                   Expanded(
-                    flex: 1, // Chiếm phần còn lại
+                    flex: 1,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min, // Giữ kích thước nhỏ nhất
+                      mainAxisSize: MainAxisSize.min,
                       children:
                           chartData.map((data) {
                             return Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: 8,
-                              ), // Khoảng cách giữa các mục chú thích
+                              padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
                                 children: [
                                   // Đốm màu tròn
@@ -931,15 +929,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               IconButton(
                                 onPressed: () {
-                                  _showEditProfileDialog(context);
-                                },
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () {
                                   // Thêm chức năng đăng xuất cho nút cài đặt
                                   _showSettingsMenu(context);
                                 },
@@ -1048,23 +1037,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                             ),
                           ),
-                          // Camera icon
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: Colors.blueAccent,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: InkWell(
-                              onTap: () => _showChangePhotoOptions(context),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
 
@@ -1085,23 +1057,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Stats Row (23 - 17 - 85%)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildStat('23', 'Ngày sử dụng'),
-                            _buildVerticalDivider(),
-                            _buildStat('17', 'Thành tích'),
-                            _buildVerticalDivider(),
-                            _buildStat('85%', 'Hiệu suất'),
-                          ],
                         ),
                       ),
 
@@ -1139,7 +1094,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
+                            blurRadius: 5,
                             spreadRadius: 1,
                           ),
                         ],
@@ -1149,7 +1104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
 
                     // Bottom navigation padding
-                    SizedBox(height: size.height * 0.08),
+                    SizedBox(height: size.height * 0.06),
                   ],
                 ),
               ),
@@ -1314,22 +1269,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   // Có thể thêm các tùy chọn cài đặt khác ở đây
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.bug_report, color: Colors.orange),
-                title: Text(
-                  'Debug Blocking',
-                  style: GoogleFonts.poppins(color: Colors.orange),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BlockingDebugScreen(),
-                    ),
-                  );
                 },
               ),
               ListTile(
