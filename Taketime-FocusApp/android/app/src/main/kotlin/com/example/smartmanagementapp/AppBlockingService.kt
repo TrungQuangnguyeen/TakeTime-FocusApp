@@ -429,7 +429,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
                 // Parse the Flutter SharedPreferences format
                 // Assuming data is a JSON array of objects with packageName, timeLimit (minutes), isBlocked (boolean)
                 // Example: [{"packageName":"com.game.app","timeLimit":30,"isBlocked":true}]
-                
+
                 val flutterListPrefix = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu!"
                 val actualJsonString = if (blockedAppsData.startsWith(flutterListPrefix)) {
                     Log.d(TAG, "DEBUG LOAD: Detected Flutter list prefix, removing it.")
@@ -438,34 +438,50 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
                     blockedAppsData
                 }
 
-                val cleanJson = actualJsonString.replace("\"", """).replace(""{", "{").replace("}"", "}")
+                val cleanJson = actualJsonString.replace("\\\"", "\"").replace("\"{", "{").replace("}\"", "}")
                 Log.d(TAG, "DEBUG LOAD: Cleaned JSON: $cleanJson")
-                val jsonArray = JSONArray(cleanJson)
-
-                Log.d(TAG, "DEBUG LOAD: Parsed JSON array length: ${jsonArray.length()}")
-
-                for (i in 0 until jsonArray.length()) {
-                    val appJsonString = jsonArray.getString(i)
-                     Log.d(TAG, "DEBUG LOAD: Processing app JSON string: $appJsonString")
-                    val appJson = JSONObject(appJsonString)
-                    val packageName = appJson.getString("packageName")
-                    val timeLimitMinutes = appJson.getInt("timeLimit")
-                    val isBlocked = appJson.getBoolean("isBlocked") // Assuming this field exists to indicate if blocking is active
-
-                    Log.d(TAG, "DEBUG LOAD: Processed app - Package: $packageName, TimeLimit: $timeLimitMinutes, IsBlocked: $isBlocked")
-
-                    // SAFETY: Never add our own app to blocked list
-                    if (packageName == OWN_PACKAGE_NAME) {
-                        Log.w(TAG, "SAFETY: Filtering out our own app from blocked list - Package: $packageName")
-                        continue
-                    }
-
-                    if (isBlocked) { // Only add if isBlocked is true
-                        blockedPackages.add(packageName)
-                        timeLimit[packageName] = timeLimitMinutes
-                        Log.d(TAG, "DEBUG LOAD: Added to blocked list - Package: $packageName, limit: $timeLimitMinutes minutes")
-                    }
+                val jsonArray = try { // Sử dụng try-catch cục bộ để bắt lỗi parsing JSON
+                     JSONArray(cleanJson)
+                } catch (e: Exception) {
+                    Log.e(TAG, "DEBUG LOAD: Error parsing JSONArray from cleaned JSON: ${e.message}", e)
+                    JSONArray() // Trả về mảng rỗng nếu lỗi
                 }
+
+                if (jsonArray.length() > 0) { // Chỉ xử lý nếu mảng JSON không rỗng
+                     Log.d(TAG, "DEBUG LOAD: Parsed JSON array length: ${jsonArray.length()}")
+
+                     for (i in 0 until jsonArray.length()) {
+                         val appJsonString = jsonArray.getString(i)
+                          Log.d(TAG, "DEBUG LOAD: Processing app JSON string: $appJsonString")
+                         val appJson = try { // Sử dụng try-catch cục bộ để bắt lỗi parsing JSONObject
+                              JSONObject(appJsonString)
+                         } catch (e: Exception) {
+                             Log.e(TAG, "DEBUG LOAD: Error parsing JSONObject from string: ${e.message}", e)
+                             continue // Bỏ qua mục bị lỗi
+                         }
+
+                         val packageName = appJson.optString("packageName") // Sử dụng optString để tránh lỗi nếu key không tồn tại
+                         val timeLimitMinutes = appJson.optInt("timeLimit", 0) // Sử dụng optInt với giá trị mặc định
+                         val isBlocked = appJson.optBoolean("isBlocked", false) // Sử dụng optBoolean với giá trị mặc định
+
+                         Log.d(TAG, "DEBUG LOAD: Processed app - Package: $packageName, TimeLimit: $timeLimitMinutes, IsBlocked: $isBlocked")
+
+                         // SAFETY: Never add our own app to blocked list
+                         if (packageName == OWN_PACKAGE_NAME) {
+                             Log.w(TAG, "SAFETY: Filtering out our own app from blocked list - Package: $packageName")
+                             continue
+                         }
+
+                         if (isBlocked) { // Only add if isBlocked is true
+                             blockedPackages.add(packageName)
+                             timeLimit[packageName] = timeLimitMinutes
+                             Log.d(TAG, "DEBUG LOAD: Added to blocked list - Package: $packageName, limit: $timeLimitMinutes minutes")
+                         }
+                     }
+                } else {
+                    Log.d(TAG, "DEBUG LOAD: JSONArray is empty or parsing failed.")
+                }
+
             }
 
             // Usage time is now primarily managed by updateUsageStatsForBlockedApps,
@@ -480,7 +496,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
             Log.d(TAG, "DEBUG LOAD: Service enabled (based on blocked list): $isEnabled")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading blocked apps: ${e.message}", e)
+            Log.e(TAG, "Error loading blocked apps (outer catch): ${e.message}", e)
             e.printStackTrace()
         }
     }
