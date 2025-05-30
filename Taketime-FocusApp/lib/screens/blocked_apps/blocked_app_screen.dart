@@ -7,6 +7,8 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/app_blocking_service.dart';
 import '../settings/permission_setup_screen.dart';
+import 'package:flutter/rendering.dart';
+import 'package:table_calendar/table_calendar.dart' as table_calendar;
 
 class BlockedAppScreen extends StatefulWidget {
   const BlockedAppScreen({super.key});
@@ -15,7 +17,10 @@ class BlockedAppScreen extends StatefulWidget {
   State<BlockedAppScreen> createState() => _BlockedAppScreenState();
 }
 
-class _BlockedAppScreenState extends State<BlockedAppScreen> {
+class _BlockedAppScreenState extends State<BlockedAppScreen>
+    with
+        WidgetsBindingObserver // Thêm WidgetsBindingObserver
+        {
   // Lưu trữ dữ liệu các ứng dụng bị chặn
   late List<Map<String, dynamic>> _blockedApps = [];
 
@@ -37,9 +42,13 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
   // Định kỳ lưu dữ liệu
   Timer? _saveDataTimer;
 
+  // Lưu trữ ngày cuối cùng dữ liệu usage được tải
+  DateTime? _lastUsageLoadDate;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Thêm observer
     _loadBlockedApps();
     _startUsageTracking();
     _checkPermissions(); // Add permission check
@@ -48,10 +57,14 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
     _saveDataTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       _saveUsageData();
     });
+
+    // Ghi lại ngày tải dữ liệu usage ban đầu
+    _lastUsageLoadDate = DateTime.now();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Gỡ observer
     _usageTimer?.cancel();
     _saveDataTimer?.cancel();
     _saveUsageData(); // Lưu dữ liệu trước khi đóng màn hình
@@ -63,6 +76,43 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
     }
 
     super.dispose();
+  }
+
+  // Implement didChangeAppLifecycleState to check for date change and reload data
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Khi ứng dụng trở lại trạng thái hoạt động, kiểm tra ngày
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final lastLoadedDay =
+          _lastUsageLoadDate != null
+              ? DateTime(
+                _lastUsageLoadDate!.year,
+                _lastUsageLoadDate!.month,
+                _lastUsageLoadDate!.day,
+              )
+              : null;
+
+      if (lastLoadedDay == null ||
+          !table_calendar.isSameDay(today, lastLoadedDay)) {
+        print(
+          'Date changed or no data loaded, reloading usage data and resetting blocking state...',
+        );
+        _loadRealUsageData(); // Tải lại dữ liệu usage cho ngày mới
+        _lastUsageLoadDate = today; // Cập nhật ngày tải dữ liệu cuối cùng
+
+        // Reset trạng thái blocking nếu cần thiết (để đảm bảo chặn lại đúng ngày)
+        // Có thể cần thêm phương thức trong AppBlockingService để reset trạng thái blocking theo ngày
+        // Hiện tại, logic _checkRunningApps sẽ tự kiểm tra và áp dụng lại blocking nếu vượt limit mới của ngày
+        // Nhưng để chắc chắn, có thể cần một lệnh rõ ràng hơn cho native code.
+        // Tạm thời chỉ cần tải lại dữ liệu usage.
+      } else {
+        print(
+          'Date is the same, no need to reload usage data in BlockedAppScreen.',
+        );
+      }
+    }
   }
 
   // Tải danh sách ứng dụng bị chặn từ bộ nhớ
@@ -112,8 +162,18 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
       final permissions = await AppBlockingService.checkAllPermissions();
 
       if (permissions['usageStats'] == true) {
-        // Get real usage data from system
-        final allAppsUsage = await AppBlockingService.getAllAppsUsageTime();
+        // Lấy dữ liệu sử dụng thực tế cho NGÀY HIỆN TẠI
+        final now = DateTime.now();
+        final startOfToday = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+        final allAppsUsage = await AppBlockingService.getUsageTimeForDateRange(
+          startOfToday,
+          endOfToday,
+        );
+
+        // Reset _appUsageTime cho ngày mới trước khi cập nhật
+        _appUsageTime.clear();
 
         // Update usage time for our blocked apps with real data
         for (var app in _blockedApps) {
@@ -131,7 +191,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen> {
           setState(() {});
         }
 
-        print('Real usage data loaded successfully');
+        print('Real usage data loaded successfully for today');
       } else {
         print('Usage Stats permission not granted, using saved data');
       }

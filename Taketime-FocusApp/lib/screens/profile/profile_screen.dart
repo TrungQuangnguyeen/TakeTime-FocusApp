@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,7 @@ import '../../screens/blocked_apps/usage_statistics_screen.dart'; // Import cho 
 import '../settings/permission_setup_screen.dart'; // Sửa đường dẫn import cho PermissionSetupScreen
 import '../../services/auth_service.dart'; // Import AuthService
 import '../../services/app_blocking_service.dart'; // Import AppBlockingService
+import 'package:table_calendar/table_calendar.dart' as table_calendar;
 
 class ProfileScreen extends StatefulWidget {
   final AuthService authService; // Add this
@@ -24,7 +26,10 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with
+        WidgetsBindingObserver // Thêm WidgetsBindingObserver
+        {
   String _userName = "Đang tải..."; // Giá trị mặc định
   String _userEmail = "Đang tải..."; // Giá trị mặc định
   String? _avatarUrl; // Thêm để lưu URL avatar từ Supabase
@@ -38,6 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Thêm observer
     _fetchAndSetUserProfile();
     _loadProfileImage(); // Giữ lại để tải avatar local nếu có
 
@@ -45,6 +51,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _blockedApps = [];
     _dailyUsageData = {};
     _loadUsageDataForPieChart(); // Tải dữ liệu sử dụng cho biểu đồ tròn
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Gỡ observer
+    super.dispose();
   }
 
   Future<void> _fetchAndSetUserProfile() async {
@@ -755,38 +767,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AppUsageStatisticsScreen(),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFF4776E6),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.bar_chart, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  'Xem chi tiết thống kê',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1163,6 +1143,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Implement didChangeAppLifecycleState to check for date change
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Khi ứng dụng trở lại trạng thái hoạt động, kiểm tra ngày
+      final now = DateTime.now();
+      // Lấy ngày của dữ liệu sử dụng đang hiển thị (lấy từ key trong _dailyUsageData)
+      DateTime? lastLoadedDate;
+      if (_dailyUsageData.isNotEmpty) {
+        try {
+          final dateString = _dailyUsageData.keys.first;
+          final parts = dateString.split('-');
+          if (parts.length == 3) {
+            lastLoadedDate = DateTime(
+              int.parse(parts[0]),
+              int.parse(parts[1]),
+              int.parse(parts[2]),
+            );
+          }
+        } catch (e) {
+          print('Error parsing last loaded date: $e');
+        }
+      }
+
+      // So sánh ngày hiện tại với ngày dữ liệu đã tải
+      final today = DateTime(now.year, now.month, now.day);
+      final lastLoadedDay =
+          lastLoadedDate != null
+              ? DateTime(
+                lastLoadedDate.year,
+                lastLoadedDate.month,
+                lastLoadedDate.day,
+              )
+              : null;
+
+      if (lastLoadedDay == null ||
+          !table_calendar.isSameDay(today, lastLoadedDay)) {
+        print('Date changed or no data loaded, reloading usage data...');
+        _loadUsageDataForPieChart(); // Tải lại dữ liệu sử dụng nếu ngày thay đổi
+      } else {
+        print('Date is the same, no need to reload usage data.');
+      }
     }
   }
 }

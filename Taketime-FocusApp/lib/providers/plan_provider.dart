@@ -23,13 +23,20 @@ class PlanProvider with ChangeNotifier {
   // Get plans for a specific date
   List<Plan> getPlansForDate(DateTime date) {
     _updatePlanStatuses();
+    // Chuẩn hóa ngày được chọn để chỉ lấy phần ngày, tháng, năm
+    final normalizedSelectedDate = DateTime(date.year, date.month, date.day);
+
     final plans =
         _plans
             .where(
               (plan) =>
-                  plan.startTime.year == date.year &&
-                  plan.startTime.month == date.month &&
-                  plan.startTime.day == date.day,
+                  // Chuẩn hóa startTime của plan để chỉ lấy phần ngày, tháng, năm trước khi so sánh
+                  DateTime(
+                    plan.startTime.year,
+                    plan.startTime.month,
+                    plan.startTime.day,
+                  ) ==
+                  normalizedSelectedDate,
             )
             .toList();
 
