@@ -288,9 +288,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
+                        // Ô thống kê mới cho số lượng kế hoạch hôm nay
                         Expanded(
-                          child:
-                              Container(), // Có thể để trống hoặc xóa Expanded này
+                          child: Consumer<PlanProvider>(
+                            builder: (context, planProvider, child) {
+                              final todayPlans = planProvider.getPlansForDate(
+                                DateTime.now(),
+                              );
+                              final completedPlans =
+                                  todayPlans
+                                      .where((plan) => plan.isCompleted)
+                                      .length;
+                              final totalPlans = todayPlans.length;
+                              return _buildStatItem(
+                                context,
+                                Icons.assignment_outlined,
+                                '$completedPlans/$totalPlans',
+                                'Kế hoạch hoàn thành',
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -302,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Features section
               Text(
-                'Công việc hôm nay',
+                'Công việc đến hạn hôm nay',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),

@@ -103,16 +103,31 @@ class PlanProvider with ChangeNotifier {
   }
 
   // Toggle plan completion status
-  void togglePlanCompletion(String id) {
+  Future<void> togglePlanCompletion(
+    String id,
+    UserProvider userProvider,
+  ) async {
     final index = _plans.indexWhere((plan) => plan.id == id);
     if (index != -1) {
       final plan = _plans[index];
-      _plans[index] = plan.copyWith(
-        isCompleted: !plan.isCompleted,
-        status:
-            !plan.isCompleted ? PlanStatus.completed : PlanStatus.inProgress,
+      final now = DateTime.now();
+      final planDate = DateTime(
+        plan.startTime.year,
+        plan.startTime.month,
+        plan.startTime.day,
       );
-      notifyListeners();
+      final today = DateTime(now.year, now.month, now.day);
+
+      if (planDate.isBefore(today)) {
+        // Nếu kế hoạch đã qua ngày, xóa khỏi database
+        await deleteTaskApi(id, userProvider);
+      } else {
+        // Nếu kế hoạch trong ngày, cập nhật trạng thái hoàn thành
+        final updates = {
+          'status': !plan.isCompleted ? 'completed' : 'inProgress',
+        };
+        await updateTask(id, updates, userProvider);
+      }
     }
   }
 
@@ -539,7 +554,6 @@ class PlanProvider with ChangeNotifier {
       projectId: userProvider.currentUser!.projectId,
       reminderTime: calculatedReminderTime,
       status: PlanStatus.upcoming, // Trạng thái mặc định khi tạo mới
-      isCompleted: false, // Mặc định chưa hoàn thành
     );
 
     // Gửi yêu cầu POST đến backend API /api/Task với dữ liệu plan.toJson()

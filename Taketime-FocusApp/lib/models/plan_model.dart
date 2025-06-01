@@ -13,7 +13,6 @@ class Plan {
   final DateTime endTime;
   final String note;
   final PlanPriority priority;
-  final bool isCompleted;
   final PlanStatus status;
   final String? projectId;
   final DateTime? reminderTime;
@@ -25,11 +24,13 @@ class Plan {
     required this.endTime,
     this.note = '',
     this.priority = PlanPriority.medium,
-    this.isCompleted = false,
     required this.status,
     this.projectId,
     this.reminderTime,
   });
+
+  // Lấy trạng thái hoàn thành dựa trên status
+  bool get isCompleted => status == PlanStatus.completed;
 
   // Lấy icon tương ứng với mức độ ưu tiên
   IconData getPriorityIcon() {
@@ -91,7 +92,6 @@ class Plan {
     DateTime? endTime,
     String? note,
     PlanPriority? priority,
-    bool? isCompleted,
     PlanStatus? status,
     String? projectId,
     DateTime? reminderTime,
@@ -103,7 +103,6 @@ class Plan {
       endTime: endTime ?? this.endTime,
       note: note ?? this.note,
       priority: priority ?? this.priority,
-      isCompleted: isCompleted ?? this.isCompleted,
       status: status ?? this.status,
       projectId: projectId ?? this.projectId,
       reminderTime: reminderTime ?? this.reminderTime,
@@ -112,7 +111,7 @@ class Plan {
 
   @override
   String toString() {
-    return 'Plan{id: $id, title: $title, startTime: $startTime, endTime: $endTime, note: $note, priority: $priority, isCompleted: $isCompleted, status: $status, projectId: $projectId, reminderTime: $reminderTime}';
+    return 'Plan{id: $id, title: $title, startTime: $startTime, endTime: $endTime, note: $note, priority: $priority, status: $status, projectId: $projectId, reminderTime: $reminderTime}';
   }
 
   // Factory constructor để tạo đối tượng Plan từ JSON
@@ -203,9 +202,6 @@ class Plan {
           safeGet<String>(json, 'note') ??
           '', // Backend sử dụng 'description' hoặc 'note'
       priority: parsePriority(json['priority']),
-      isCompleted:
-          safeGet<bool>(json, 'is_completed') ??
-          false, // Giả định có trường is_completed
       status: parseStatus(json['status']), // Sử dụng hàm parseStatus
       projectId:
           safeGet<String>(json, 'project_id') ??
@@ -224,11 +220,10 @@ class Plan {
           startTime.toIso8601String(), // Sử dụng 'timestart' cho startTime
       'deadline': endTime.toIso8601String(), // Sử dụng 'deadline' cho endTime
       'priority':
-          priority
-              .toString()
-              .split('.')
-              .last
-              .toLowerCase(), // Chuyển đổi enum sang String lowercase
+          // Ánh xạ PlanPriority.medium thành 'mid'
+          priority == PlanPriority.medium
+              ? 'mid'
+              : priority.toString().split('.').last.toLowerCase(),
       'status':
           status
               .toString()
