@@ -8,6 +8,7 @@ import '../../widgets/gradient_background.dart';
 import '../../providers/focus_session_provider.dart';
 import '../../services/focus_mode_service.dart';
 
+
 class FocusTimerScreen extends StatefulWidget {
   final int focusTimeMinutes;
   final String modeId;

@@ -8,7 +8,7 @@ import 'providers/plan_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/focus_session_provider.dart'; // Thêm import cho FocusSessionProvider
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
-import 'services/auth_service.dart'; // Thêm dòng này
+import 'services/auth_service.dart';
 import 'services/notification_service.dart'; // Import NotificationService
 
 Future<void> main() async {

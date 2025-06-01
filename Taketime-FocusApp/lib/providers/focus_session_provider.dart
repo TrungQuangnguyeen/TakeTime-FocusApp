@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/focus_session.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:http/http.dart' as http;
 
 class FocusSessionProvider with ChangeNotifier {
   List<FocusSession> _sessions = [];

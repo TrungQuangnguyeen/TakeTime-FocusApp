@@ -20,7 +20,7 @@ class NotificationService {
     print('[NotificationService] Time zones initialized.');
 
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+      '@mipmap/taketime_logo',
     );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
