@@ -5,16 +5,16 @@ import '../../providers/user_provider.dart';
 
 class FriendDetailScreen extends StatelessWidget {
   final String userId;
-  
-  const FriendDetailScreen({
-    super.key,
-    required this.userId,
-  });
-  
+
+  const FriendDetailScreen({super.key, required this.userId});
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final userProvider = Provider.of<UserProvider>(context, listen: false); // listen:false if not reacting to updates here
+    final userProvider = Provider.of<UserProvider>(
+      context,
+      listen: false,
+    ); // listen:false if not reacting to updates here
 
     // Use a FutureBuilder to fetch the user details asynchronously
     return FutureBuilder<UserModel?>(
@@ -37,15 +37,17 @@ class FriendDetailScreen extends StatelessWidget {
               centerTitle: true,
             ),
             body: Center(
-              child: Text(snapshot.hasError 
-                  ? 'Lỗi: ${snapshot.error}' 
-                  : 'Không tìm thấy thông tin người dùng'),
+              child: Text(
+                snapshot.hasError
+                    ? 'Lỗi: ${snapshot.error}'
+                    : 'Không tìm thấy thông tin người dùng',
+              ),
             ),
           );
         }
-        
+
         final user = snapshot.data!;
-        
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Chi tiết người dùng'),
@@ -58,9 +60,11 @@ class FriendDetailScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 CircleAvatar(
                   radius: 60,
-                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                      ? NetworkImage(user.avatarUrl!) // Use NetworkImage
-                      : const AssetImage('assets/avatar.jpg') as ImageProvider, // Fallback
+                  backgroundImage:
+                      user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                          ? NetworkImage(user.avatarUrl!) // Use NetworkImage
+                          : const AssetImage('assets/avatar.jpg')
+                              as ImageProvider, // Fallback
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -84,20 +88,20 @@ class FriendDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Biểu đồ hoạt động
                 _buildActivityGraph(context, theme),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Danh sách thành tựu gần đây (mô phỏng)
                 _buildRecentAchievements(context, theme),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Nút hành động
                 _buildActionButtons(context, user, userProvider),
-                
+
                 const SizedBox(height: 40),
               ],
             ),
@@ -106,12 +110,12 @@ class FriendDetailScreen extends StatelessWidget {
       },
     );
   }
-  
+
   Widget _buildStatItem(
-    BuildContext context, 
-    String value, 
-    String label, 
-    Color color
+    BuildContext context,
+    String value,
+    String label,
+    Color color,
   ) {
     return Column(
       children: [
@@ -131,7 +135,7 @@ class FriendDetailScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildActivityGraph(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,8 +196,13 @@ class FriendDetailScreen extends StatelessWidget {
       ],
     );
   }
-  
-  Widget _buildBar(BuildContext context, String day, double value, ThemeData theme) {
+
+  Widget _buildBar(
+    BuildContext context,
+    String day,
+    double value,
+    ThemeData theme,
+  ) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -206,14 +215,11 @@ class FriendDetailScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          day,
-          style: theme.textTheme.bodySmall,
-        ),
+        Text(day, style: theme.textTheme.bodySmall),
       ],
     );
   }
-  
+
   Widget _buildRecentAchievements(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,16 +241,30 @@ class FriendDetailScreen extends StatelessWidget {
           itemCount: 3,
           itemBuilder: (context, index) {
             final achievements = [
-              {'title': 'Đạt 30 giờ tập trung', 'date': '02/05/2025', 'icon': Icons.timer},
-              {'title': 'Hoàn thành 10 kế hoạch', 'date': '28/04/2025', 'icon': Icons.check_circle},
-              {'title': 'Đạt hiệu suất 85%', 'date': '25/04/2025', 'icon': Icons.trending_up},
+              {
+                'title': 'Đạt 30 giờ tập trung',
+                'date': '02/05/2025',
+                'icon': Icons.timer,
+              },
+              {
+                'title': 'Hoàn thành 10 kế hoạch',
+                'date': '28/04/2025',
+                'icon': Icons.check_circle,
+              },
+              {
+                'title': 'Đạt hiệu suất 85%',
+                'date': '25/04/2025',
+                'icon': Icons.trending_up,
+              },
             ];
-            
+
             final achievement = achievements[index];
-            
+
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
@@ -270,13 +290,19 @@ class FriendDetailScreen extends StatelessWidget {
       ],
     );
   }
-  
-  Widget _buildActionButtons(BuildContext context, UserModel user, UserProvider userProvider) {
+
+  Widget _buildActionButtons(
+    BuildContext context,
+    UserModel user,
+    UserProvider userProvider,
+  ) {
     // final currentUser = userProvider.currentUser; // Already available via provider if needed
     // Use provider methods directly
     final isFriend = userProvider.isFriend(user.id);
     final hasSentRequest = userProvider.hasSentFriendRequestTo(user.id);
-    final hasReceivedRequest = userProvider.hasReceivedFriendRequestFrom(user.id);
+    final hasReceivedRequest = userProvider.hasReceivedFriendRequestFrom(
+      user.id,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -285,7 +311,10 @@ class FriendDetailScreen extends StatelessWidget {
           if (user.id == userProvider.currentUser?.id)
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
-              child: Text("Đây là trang cá nhân của bạn.", style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                "Đây là trang cá nhân của bạn.",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             )
           else if (isFriend)
             _buildRemoveFriendButton(context, user, userProvider)
@@ -302,32 +331,47 @@ class FriendDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRemoveFriendButton(BuildContext context, UserModel user, UserProvider userProvider) {
+  Widget _buildRemoveFriendButton(
+    BuildContext context,
+    UserModel user,
+    UserProvider userProvider,
+  ) {
     return ElevatedButton.icon(
       onPressed: () async {
-        bool confirm = await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Hủy kết bạn'),
-            content: Text('Bạn muốn hủy kết bạn với ${user.username}?'), // Corrected: user.username
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Hủy'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Đồng ý'),
-              ),
-            ],
-          ),
-        ) ?? false;
+        bool confirm =
+            await showDialog(
+              context: context,
+              builder:
+                  (context) => AlertDialog(
+                    title: const Text('Hủy kết bạn'),
+                    content: Text(
+                      'Bạn muốn hủy kết bạn với ${user.username}?',
+                    ), // Corrected: user.username
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Hủy'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Đồng ý'),
+                      ),
+                    ],
+                  ),
+            ) ??
+            false;
 
         if (confirm) {
           bool success = await userProvider.removeFriend(user.id);
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(success ? 'Đã hủy kết bạn với ${user.username}' : 'Lỗi khi hủy kết bạn')),
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'Đã hủy kết bạn với ${user.username}'
+                      : 'Lỗi khi hủy kết bạn',
+                ),
+              ),
             );
             if (success) Navigator.pop(context); // Go back if successful
           }
@@ -343,16 +387,22 @@ class FriendDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAddFriendButton(BuildContext context, UserModel user, UserProvider userProvider) {
+  Widget _buildAddFriendButton(
+    BuildContext context,
+    UserModel user,
+    UserProvider userProvider,
+  ) {
     return ElevatedButton.icon(
       onPressed: () async {
         bool success = await userProvider.sendFriendRequest(user.id);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(success 
-                  ? 'Đã gửi lời mời kết bạn đến ${user.username}' // Corrected: user.username
-                  : 'Lỗi khi gửi lời mời kết bạn'),
+              content: Text(
+                success
+                    ? 'Đã gửi lời mời kết bạn đến ${user.username}' // Corrected: user.username
+                    : 'Lỗi khi gửi lời mời kết bạn',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -381,7 +431,11 @@ class FriendDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRespondToRequestButtons(BuildContext context, UserModel user, UserProvider userProvider) {
+  Widget _buildRespondToRequestButtons(
+    BuildContext context,
+    UserModel user,
+    UserProvider userProvider,
+  ) {
     // Find the specific request to get the friendshipId
     final request = userProvider.incomingFriendRequests.firstWhere(
       (req) => req.requesterId == user.id,
@@ -392,10 +446,18 @@ class FriendDetailScreen extends StatelessWidget {
       children: [
         ElevatedButton.icon(
           onPressed: () async {
-            bool success = await userProvider.acceptFriendRequest(request.friendshipId);
+            bool success = await userProvider.acceptFriendRequest(
+              request.friendshipId,
+            );
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(success ? 'Đã chấp nhận ${user.username}' : 'Lỗi khi chấp nhận')),
+                SnackBar(
+                  content: Text(
+                    success
+                        ? 'Đã chấp nhận ${user.username}'
+                        : 'Lỗi khi chấp nhận',
+                  ),
+                ),
               );
             }
           },
@@ -410,10 +472,16 @@ class FriendDetailScreen extends StatelessWidget {
         const SizedBox(height: 8),
         ElevatedButton.icon(
           onPressed: () async {
-            bool success = await userProvider.rejectFriendRequest(request.friendshipId);
+            bool success = await userProvider.rejectFriendRequest(
+              request.friendshipId,
+            );
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(success ? 'Đã từ chối ${user.username}' : 'Lỗi khi từ chối')),
+                SnackBar(
+                  content: Text(
+                    success ? 'Đã từ chối ${user.username}' : 'Lỗi khi từ chối',
+                  ),
+                ),
               );
             }
           },

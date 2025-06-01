@@ -17,9 +17,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  assets:
-    - assets/app_intro.jpg
-    - assets/avatar.jpg
-    - assets/sounds/
-    - assets/icons/

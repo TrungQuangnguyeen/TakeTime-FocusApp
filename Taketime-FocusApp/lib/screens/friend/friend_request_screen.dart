@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/user_model.dart';
 import '../../providers/user_provider.dart';
-import '../../models/friend_request_model.dart'; // Added import
-import 'friend_detail_screen.dart';
 
 class FriendRequestScreen extends StatefulWidget {
   const FriendRequestScreen({super.key});

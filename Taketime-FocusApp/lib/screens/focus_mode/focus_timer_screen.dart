@@ -8,6 +8,7 @@ import '../../widgets/gradient_background.dart';
 import '../../providers/focus_session_provider.dart';
 import '../../services/focus_mode_service.dart';
 
+
 class FocusTimerScreen extends StatefulWidget {
   final int focusTimeMinutes;
   final String modeId;
@@ -89,17 +90,6 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
           _showCompletionDialog();
         }
       });
-    });
-  }
-
-  void _pauseResumeTimer() {
-    setState(() {
-      if (_isPaused) {
-        _startTimer();
-      } else {
-        _timer?.cancel();
-      }
-      _isPaused = !_isPaused;
     });
   }
 
@@ -196,20 +186,6 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Ẩn nút Back khi timer đang chạy (_timer?.isActive)
-                    _timer != null && _timer!.isActive
-                        ? const SizedBox(
-                          width: 48,
-                        ) // Giữ khoảng trống để layout không nhảy
-                        : IconButton(
-                          onPressed: () {
-                            _showExitConfirmationDialog();
-                          },
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                          ),
-                        ),
                     Expanded(
                       child: Center(
                         child: FadeInDown(
@@ -331,44 +307,6 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
           ),
         ),
       ),
-    );
-  }
-
-  void _showExitConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              'Kết thúc phiên tập trung?',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              'Bạn có chắc muốn kết thúc phiên tập trung này?',
-              style: GoogleFonts.poppins(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text('Tiếp tục tập trung', style: GoogleFonts.poppins()),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _cancelFocus();
-                },
-                child: Text(
-                  'Kết thúc',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
-              ),
-            ],
-          ),
     );
   }
 

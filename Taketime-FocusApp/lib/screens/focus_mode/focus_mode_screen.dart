@@ -245,13 +245,24 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                   // Tiêu đề trang
                   FadeInDown(
                     duration: const Duration(milliseconds: 500),
-                    child: Text(
-                      'Chế độ Tập trung',
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Khoảng cách
+                        Center(
+                          // Thêm Center để căn giữa
+                          child: Text(
+                            _isFocusModeActive
+                                ? 'Đang tập trung'
+                                : 'Chế độ Tập trung', // Thay đổi tiêu đề
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -746,52 +757,6 @@ class _FocusModeScreenState extends State<FocusModeScreen>
           ],
         ),
       ),
-    );
-  }
-
-  void _showClearHistoryConfirmation() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              'Xóa tất cả lịch sử?',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              'Tất cả lịch sử phiên tập trung sẽ bị xóa. Bạn có chắc không?',
-              style: GoogleFonts.poppins(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('Hủy', style: GoogleFonts.poppins()),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Provider.of<FocusSessionProvider>(
-                    context,
-                    listen: false,
-                  ).clearAllSessions();
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Đã xóa tất cả lịch sử'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(
-                  'Xóa tất cả',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
     );
   }
 }
