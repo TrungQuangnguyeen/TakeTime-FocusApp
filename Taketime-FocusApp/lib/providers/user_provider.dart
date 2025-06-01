@@ -244,6 +244,10 @@ class UserProvider with ChangeNotifier {
         if (_incomingFriendRequests.length > previousIncomingCount) {
           notifyListeners();
         }
+
+        print(
+          '[UserProvider] Updated _outgoingFriendRequests: ${_outgoingFriendRequests.map((req) => '${req.friendshipId}:${req.status}').join(', ')}',
+        );
       } else {
         print(
           '[UserProvider] Failed to fetch friend requests: ${response.statusCode} ${response.body}',
@@ -261,27 +265,52 @@ class UserProvider with ChangeNotifier {
       _acceptedFriendships = [];
     } finally {
       _isLoading = false;
+      print(
+        '[UserProvider] fetchFriendRequests completed. Parsed ${successfullyParsedRequests.length} requests. Incoming: ${_incomingFriendRequests.length}, Outgoing: ${_outgoingFriendRequests.length}, Accepted: ${_acceptedFriendships.length}',
+      );
       notifyListeners();
     }
   }
 
   Future<UserModel?> fetchUserByIdFromApi(String userId) async {
-    if (_accessToken == null) return null;
+    print('[UserProvider] fetchUserByIdFromApi called for userId: $userId');
+    if (_accessToken == null) {
+      print(
+        '[UserProvider] fetchUserByIdFromApi: _accessToken is null, returning null.',
+      );
+      return null;
+    }
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/FriendShip/search?query=$userId'),
+        Uri.parse('$_baseUrl/api/users/$userId'),
         headers: _headers,
       );
+
+      print(
+        '[UserProvider] Fetch User By ID Status Code: ${response.statusCode}',
+      );
+      print('[UserProvider] Fetch User By ID Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-        if (data.isNotEmpty) {
-          return UserModel.fromJson(data.first as Map<String, dynamic>);
-        }
+        final Map<String, dynamic> data =
+            jsonDecode(response.body) as Map<String, dynamic>;
+        final UserModel fetchedUser = UserModel.fromJson(data);
+        print(
+          '[UserProvider] Successfully fetched user by ID: ${fetchedUser.id}',
+        );
+        return fetchedUser;
+      } else if (response.statusCode == 404) {
+        print('[UserProvider] User with ID $userId not found (404).');
+        return null;
+      } else {
+        print(
+          '[UserProvider] Failed to fetch user by ID: ${response.statusCode} ${response.body}',
+        );
         return null;
       }
-      return null;
-    } catch (e) {
-      print('Error fetching user by ID from API: $e');
+    } catch (e, stackTrace) {
+      print('[UserProvider] Exception fetching user by ID: $e');
+      print('[UserProvider] StackTrace: $stackTrace');
       return null;
     }
   }
@@ -457,79 +486,36 @@ class UserProvider with ChangeNotifier {
     return success;
   }
 
-  Future<bool> removeFriend(String userIdToRemove) async {
-    if (_accessToken == null || _currentUser == null) {
-      print(
-        "[UserProvider] Access token or current user is null. Cannot remove friend.",
-      );
+  Future<bool> removeFriend(String friendshipId) async {
+    if (_accessToken == null) {
       return false;
     }
-
-    FriendRequest? friendshipToRemove;
-    try {
-      friendshipToRemove = _acceptedFriendships.firstWhere(
-        (req) =>
-            (req.requesterId == _currentUser!.id &&
-                req.receiverId == userIdToRemove) ||
-            (req.receiverId == _currentUser!.id &&
-                req.requesterId == userIdToRemove),
-      );
-    } catch (e) {
-      print(
-        '[UserProvider] No accepted friendship found with user $userIdToRemove in local _acceptedFriendships list. Cannot remove.',
-      );
-      print(
-        '[UserProvider] Current _acceptedFriendships count: ${_acceptedFriendships.length}. Contents:',
-      );
-      for (var fr in _acceptedFriendships) {
-        print(
-          '[UserProvider] Accepted Friendship: ID=${fr.friendshipId}, Requester=${fr.requesterId}, Receiver=${fr.receiverId}, Status=${fr.status}',
-        );
-      }
-      return false;
-    }
-
-    final String actualFriendshipId = friendshipToRemove.friendshipId;
-
-    print(
-      '[UserProvider] Attempting to remove friend $userIdToRemove with Friendship ID: $actualFriendshipId',
-    );
 
     _isLoading = true;
     notifyListeners();
-    bool success = false;
 
     try {
       final response = await http.delete(
-        Uri.parse('$_baseUrl/api/FriendShip/remove/$actualFriendshipId'),
+        Uri.parse('$_baseUrl/api/Friendship/remove/$friendshipId'),
         headers: _headers,
       );
-      print(
-        '[UserProvider] Remove Friend API Status Code: ${response.statusCode}',
-      );
-      print('[UserProvider] Remove Friend API Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        print(
-          '[UserProvider] Friend with user ID $userIdToRemove (Friendship ID: $actualFriendshipId) removed successfully via API.',
+        _friends.removeWhere((friend) => friend.friendshipId == friendshipId);
+        _acceptedFriendships.removeWhere(
+          (req) => req.friendshipId == friendshipId,
         );
-        await fetchFriends();
-        await fetchFriendRequests();
 
-        _searchedUsers.removeWhere((user) => user.id == userIdToRemove);
-        success = true;
+        return true;
       } else {
-        print(
-          '[UserProvider] Failed to remove friend from API: ${response.statusCode} ${response.body}',
-        );
+        return false;
       }
-    } catch (e) {
-      print('[UserProvider] Error removing friend via API: $e');
+    } catch (e, stackTrace) {
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
-    return success;
   }
 
   Future<void> fetchUserProject() async {

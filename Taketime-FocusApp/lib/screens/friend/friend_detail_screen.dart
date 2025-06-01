@@ -3,11 +3,16 @@ import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
 import '../../providers/user_provider.dart';
 
-class FriendDetailScreen extends StatelessWidget {
+class FriendDetailScreen extends StatefulWidget {
   final String userId;
 
   const FriendDetailScreen({super.key, required this.userId});
 
+  @override
+  _FriendDetailScreenState createState() => _FriendDetailScreenState();
+}
+
+class _FriendDetailScreenState extends State<FriendDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -18,7 +23,9 @@ class FriendDetailScreen extends StatelessWidget {
 
     // Use a FutureBuilder to fetch the user details asynchronously
     return FutureBuilder<UserModel?>(
-      future: userProvider.fetchUserByIdFromApi(userId), // Use the async method
+      future: userProvider.fetchUserByIdFromApi(
+        widget.userId,
+      ), // Use the async method
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(

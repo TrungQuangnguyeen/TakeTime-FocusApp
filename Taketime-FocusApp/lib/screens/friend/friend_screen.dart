@@ -481,24 +481,108 @@ class _FriendScreenState extends State<FriendScreen>
     if (!isSearchResult) {
       // In the Friends tab, users are expected to be friends.
       // We show a "Remove Friend" button.
-      return RemoveFriendButton(user: user);
+      return PopupMenuButton<String>(
+        icon: const Icon(Icons.more_vert),
+        onSelected: (String result) async {
+          // Make async to await showDialog
+          if (result == 'remove') {
+            // Show confirmation dialog before removing
+            final bool confirmRemove =
+                await showDialog(
+                  // Await the dialog result
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Xác nhận hủy kết bạn'),
+                      content: Text(
+                        'Bạn có chắc chắn muốn hủy kết bạn với ${user.username} không?',
+                      ), // Use user.username for clarity
+                      actions: <Widget>[
+                        TextButton(
+                          onPressed:
+                              () => Navigator.of(
+                                context,
+                              ).pop(false), // Return false on cancel
+                          child: const Text('Hủy'),
+                        ),
+                        TextButton(
+                          onPressed:
+                              () => Navigator.of(
+                                context,
+                              ).pop(true), // Return true on confirm
+                          child: Text(
+                            'Xác nhận',
+                            style: TextStyle(
+                              color: theme.colorScheme.error,
+                            ), // Use error color for emphasis
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ) ??
+                false; // Default to false if dialog is dismissed unexpectedly
+
+            if (confirmRemove) {
+              // Only proceed if user confirmed
+              // Call the same logic as the original RemoveFriendButton
+              userProvider.removeFriend(user.friendshipId!).then((success) {
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Đã hủy kết bạn thành công.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Hủy kết bạn thất bại.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              });
+            }
+          }
+        },
+        itemBuilder:
+            (BuildContext context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'remove',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_remove_alt_1,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Hủy kết bạn',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+      );
     }
     // Scenario 2: Displaying in "Search Results" tab
     else {
       // isSearchResult is true
       // Prioritize friendshipStatus from the search result itself
-      if (user.friendshipStatus?.toLowerCase() == 'accepted') {
-        return ViewProfileButton(userId: user.id);
-      }
-      // Fallback to provider lists if status from search isn't 'accepted' or is null.
-      // These lists are updated more dynamically after actions.
-      else if (userProvider.isFriend(user.id)) {
-        // Handles cases where user became a friend after the search query but before UI update for this item,
-        // or if search API didn't return 'accepted' but they are in the local friends list.
+      // Re-check status using UserProvider's methods for the most up-to-date state
+      if (userProvider.isFriend(user.id)) {
+        // Check if already friend
         return ViewProfileButton(userId: user.id);
       } else if (userProvider.hasSentFriendRequestTo(user.id)) {
+        // Check if request sent
         return const RequestSentButton();
       } else if (userProvider.hasReceivedFriendRequestFrom(user.id)) {
+        // Check if request received
         // If there's an incoming request from this user
         return ElevatedButton(
           onPressed: () {
@@ -518,8 +602,39 @@ class _FriendScreenState extends State<FriendScreen>
           child: const Text('Phản hồi'), // "Respond"
         );
       } else {
-        // Not a friend, no pending requests either way according to both search status (not 'accepted') and provider lists.
-        return AddFriendButton(user: user);
+        // isSearchResult is true
+        // Use friendshipStatus provided in the search result directly for button display
+        if (user.friendshipStatus == 'accepted') {
+          // If the search result says they are already friends
+          return ViewProfileButton(userId: user.id);
+        } else if (user.friendshipStatus == 'request_sent') {
+          // If the search result says a request has been sent by the current user
+          return const RequestSentButton();
+        } else if (user.friendshipStatus == 'request_received') {
+          // If the search result says a request has been received by the current user
+          // If there's an incoming request from this user
+          return ElevatedButton(
+            onPressed: () {
+              // Navigate to the friend request screen where they can accept/deny
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FriendRequestScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.secondaryContainer,
+              foregroundColor: theme.colorScheme.onSecondaryContainer,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text('Phản hồi'), // "Respond"
+          );
+        } else {
+          // Not a friend, no pending requests either way according to both search status (not 'accepted') and provider lists.
+          // This should be the case for displaying the AddFriendButton
+          return AddFriendButton(user: user);
+        }
       }
     }
   }

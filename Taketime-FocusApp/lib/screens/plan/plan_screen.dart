@@ -37,8 +37,7 @@ class _PlanScreenState extends State<PlanScreen>
     // Thiết lập timer cập nhật trạng thái mỗi 30 giây
     _statusUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       final planProvider = Provider.of<PlanProvider>(context, listen: false);
-      planProvider
-          .notifyListeners(); // Kích hoạt getter plans để cập nhật trạng thái
+      planProvider.notifyListeners();
     });
   }
 
