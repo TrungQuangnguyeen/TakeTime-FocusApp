@@ -65,7 +65,7 @@ class _FriendScreenState extends State<FriendScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bạn bè'),
+        title: const Text('BẠN BÈ'),
         centerTitle: true,
         actions: [
           IconButton(

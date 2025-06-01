@@ -253,8 +253,8 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                           // Thêm Center để căn giữa
                           child: Text(
                             _isFocusModeActive
-                                ? 'Đang tập trung'
-                                : 'Chế độ Tập trung', // Thay đổi tiêu đề
+                                ? 'ĐANG TẬP TRUNG'
+                                : 'CHẾ ĐỘ TẬP TRUNG',
                             style: GoogleFonts.poppins(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,

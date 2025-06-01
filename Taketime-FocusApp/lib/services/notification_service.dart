@@ -17,7 +17,6 @@ class NotificationService {
 
   Future<void> init() async {
     tzdata.initializeTimeZones();
-    print('[NotificationService] Time zones initialized.');
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/taketime_logo',
@@ -35,11 +34,7 @@ class NotificationService {
 
     await _notifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        print(
-          '[NotificationService] Notification clicked: ${response.payload}',
-        );
-      },
+      onDidReceiveNotificationResponse: (NotificationResponse response) {},
       onDidReceiveBackgroundNotificationResponse:
           notificationResponseBackground,
     );
@@ -56,27 +51,12 @@ class NotificationService {
       try {
         final bool? postNotificationsGranted =
             await androidImplementation.requestNotificationsPermission();
-        if (postNotificationsGranted != true) {
-          print(
-            '[NotificationService] POST_NOTIFICATIONS permission not granted.',
-          );
-        } else {
-          print('[NotificationService] POST_NOTIFICATIONS permission granted.');
-        }
-      } catch (e) {
-        print(
-          '[NotificationService] Error requesting POST_NOTIFICATIONS permission: $e',
-        );
-      }
+      } catch (e) {}
 
       // On Android 12+, scheduling exact alarms requires SCHEDULE_EXACT_ALARM permission.
       // We've added it to AndroidManifest.xml. The system might prompt the user.
       // The plugin will throw PlatformException if permission is denied.
       // We will catch this exception during scheduling and guide the user.
-    } else {
-      print(
-        '[NotificationService] Android implementation not found or not applicable for permission checks.',
-      );
     }
 
     _configureLocalTimeZone();
@@ -87,9 +67,6 @@ class NotificationService {
     NotificationResponse notificationResponse,
   ) {
     // Handle background notification taps here
-    print(
-      'Background notification tapped with payload: ${notificationResponse.payload}',
-    );
     selectNotificationSubject.add(notificationResponse.payload);
     // Note: This function runs in its own isolate, so you can't directly update UI.
     // You might use platform channels or other mechanisms to communicate with the main isolate.
@@ -112,10 +89,6 @@ class NotificationService {
     required String body,
     required DateTime scheduledTime,
   }) async {
-    print(
-      '[NotificationService] Scheduling notification ID: $id at $scheduledTime',
-    );
-
     try {
       await _notifications.zonedSchedule(
         id,
@@ -143,26 +116,17 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      print(
-        '[NotificationService] Successfully scheduled notification ID: $id',
-      );
     } catch (e) {
       print('[NotificationService] Error scheduling notification: $e');
     }
   }
 
   Future<void> cancelNotification(int id) async {
-    print(
-      '[NotificationService] Attempting to cancel notification with ID: $id',
-    );
     await _notifications.cancel(id);
-    print('[NotificationService] Cancelled notification with ID: $id');
   }
 
   Future<void> cancelAllNotifications() async {
-    print('[NotificationService] Cancelling all notifications');
     await _notifications.cancelAll();
-    print('[NotificationService] All notifications cancelled.');
   }
 
   // Generate a unique integer ID for each notification

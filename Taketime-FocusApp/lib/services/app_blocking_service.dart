@@ -3,49 +3,38 @@ import 'package:flutter/services.dart';
 class AppBlockingService {
   static const MethodChannel _channel = MethodChannel('app_blocking_channel');
 
-  // Add debug logging helper
-  static void _debugLog(String message) {
-    print('[AppBlockingService] $message');
-  }
+  // Private constructor
+  AppBlockingService._internal();
 
   // Comprehensive diagnostic method to check entire blocking system
   static Future<Map<String, dynamic>> runDiagnostics() async {
-    _debugLog('Starting comprehensive blocking system diagnostics...');
-
     final diagnostics = <String, dynamic>{};
 
     try {
       // Check all permissions
-      _debugLog('Checking permissions...');
       diagnostics['accessibility_permission'] =
           await checkAccessibilityPermission();
       diagnostics['usage_stats_permission'] = await checkUsageStatsPermission();
       diagnostics['overlay_permission'] = await checkOverlayPermission();
 
       // Check service status
-      _debugLog('Checking service status...');
       diagnostics['service_running'] = await isAppBlockingServiceRunning();
       diagnostics['accessibility_service_enabled'] =
           await isAccessibilityServiceEnabled();
 
       // Check blocked apps data
-      _debugLog('Checking blocked apps data...');
       diagnostics['blocked_apps_count'] = await getBlockedAppsCount();
       diagnostics['blocked_apps_data'] = await getBlockedAppsData();
 
       // Check usage monitoring
-      _debugLog('Checking usage monitoring...');
       diagnostics['usage_monitoring_active'] = await isUsageMonitoringActive();
       diagnostics['current_foreground_app'] = await getCurrentForegroundApp();
 
       // Test overlay functionality
-      _debugLog('Testing overlay functionality...');
       diagnostics['overlay_test_result'] = await testOverlayDisplay();
 
-      _debugLog('Diagnostics completed successfully');
       return diagnostics;
     } catch (e) {
-      _debugLog('Error during diagnostics: $e');
       diagnostics['error'] = e.toString();
       return diagnostics;
     }
@@ -55,10 +44,8 @@ class AppBlockingService {
   static Future<bool> isAppBlockingServiceRunning() async {
     try {
       final result = await _channel.invokeMethod('isAppBlockingServiceRunning');
-      _debugLog('AppBlockingService running status: $result');
       return result ?? false;
     } catch (e) {
-      _debugLog('Error checking service status: $e');
       return false;
     }
   }
@@ -69,10 +56,8 @@ class AppBlockingService {
       final result = await _channel.invokeMethod(
         'isAccessibilityServiceEnabled',
       );
-      _debugLog('Accessibility service enabled: $result');
       return result ?? false;
     } catch (e) {
-      _debugLog('Error checking accessibility service: $e');
       return false;
     }
   }
@@ -81,10 +66,8 @@ class AppBlockingService {
   static Future<int> getBlockedAppsCount() async {
     try {
       final result = await _channel.invokeMethod('getBlockedAppsCount');
-      _debugLog('Blocked apps count: $result');
       return result ?? 0;
     } catch (e) {
-      _debugLog('Error getting blocked apps count: $e');
       return 0;
     }
   }
@@ -95,10 +78,8 @@ class AppBlockingService {
       final result = await _channel.invokeMethod('getBlockedAppsData');
       final List<Map<String, dynamic>> blockedApps =
           (result as List?)?.cast<Map<String, dynamic>>() ?? [];
-      _debugLog('Blocked apps data: $blockedApps');
       return blockedApps;
     } catch (e) {
-      _debugLog('Error getting blocked apps data: $e');
       return [];
     }
   }
@@ -107,10 +88,8 @@ class AppBlockingService {
   static Future<bool> isUsageMonitoringActive() async {
     try {
       final result = await _channel.invokeMethod('isUsageMonitoringActive');
-      _debugLog('Usage monitoring active: $result');
       return result ?? false;
     } catch (e) {
-      _debugLog('Error checking usage monitoring: $e');
       return false;
     }
   }
@@ -119,10 +98,8 @@ class AppBlockingService {
   static Future<String?> getCurrentForegroundApp() async {
     try {
       final result = await _channel.invokeMethod('getCurrentForegroundApp');
-      _debugLog('Current foreground app: $result');
       return result;
     } catch (e) {
-      _debugLog('Error getting foreground app: $e');
       return null;
     }
   }
@@ -131,10 +108,8 @@ class AppBlockingService {
   static Future<bool> testOverlayDisplay() async {
     try {
       final result = await _channel.invokeMethod('testOverlayDisplay');
-      _debugLog('Overlay test result: $result');
       return result ?? false;
     } catch (e) {
-      _debugLog('Error testing overlay: $e');
       return false;
     }
   }
@@ -145,10 +120,8 @@ class AppBlockingService {
       final result = await _channel.invokeMethod('forceBlockApp', {
         'packageName': packageName,
       });
-      _debugLog('Force block app $packageName result: $result');
       return result ?? false;
     } catch (e) {
-      _debugLog('Error force blocking app: $e');
       return false;
     }
   }
@@ -159,10 +132,8 @@ class AppBlockingService {
       final result = await _channel.invokeMethod('getUsageStatsDebug');
       final Map<String, dynamic> usageStats =
           (result as Map?)?.cast<String, dynamic>() ?? {};
-      _debugLog('Usage stats debug: $usageStats');
       return usageStats;
     } catch (e) {
-      _debugLog('Error getting usage stats debug: $e');
       return {};
     }
   }
@@ -172,10 +143,8 @@ class AppBlockingService {
     try {
       final result = await _channel.invokeMethod('getServiceLogs');
       final List<String> logs = (result as List?)?.cast<String>() ?? [];
-      _debugLog('Service logs count: ${logs.length}');
       return logs;
     } catch (e) {
-      _debugLog('Error getting service logs: $e');
       return [];
     }
   }
@@ -184,10 +153,8 @@ class AppBlockingService {
   static Future<bool> clearServiceLogs() async {
     try {
       final result = await _channel.invokeMethod('clearServiceLogs');
-      _debugLog('Clear service logs result: $result');
       return result ?? false;
     } catch (e) {
-      _debugLog('Error clearing service logs: $e');
       return false;
     }
   }
@@ -403,7 +370,6 @@ class AppBlockingService {
     DateTime startTime,
     DateTime endTime,
   ) async {
-    _debugLog('Getting usage time for date range: $startTime to $endTime');
     try {
       // Convert DateTime to milliseconds since epoch
       final int startTimeMillis = startTime.millisecondsSinceEpoch;
@@ -430,14 +396,12 @@ class AppBlockingService {
             usageStatsMinutes[packageName] = usageMinutes;
           }
         } catch (e) {
-          _debugLog('Error parsing usage time for $packageName: $e');
+          print('Error parsing usage time for $packageName: $e');
         }
       });
 
-      _debugLog('Got usage time for date range: $usageStatsMinutes');
       return usageStatsMinutes;
     } catch (e) {
-      _debugLog('Error getting usage time for date range: $e');
       return {}; // Return empty map on error
     }
   }

@@ -327,7 +327,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
             _isEditing ? 'Chỉnh sửa kế hoạch' : 'Tạo kế hoạch mới',
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              color: isDark ? Colors.white : Colors.white,
             ),
           ),
           leading: IconButton(

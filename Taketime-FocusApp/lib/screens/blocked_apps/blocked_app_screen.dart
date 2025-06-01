@@ -433,7 +433,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Giới hạn thời gian',
+                    'GIỚI HẠN THỜI GIAN',
                     style: GoogleFonts.poppins(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -625,7 +625,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$_blockedAppsCount ứng dụng đang bị khóa',
+                '$_blockedAppsCount ứng dụng đang quản lý',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -668,7 +668,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
             ),
             const SizedBox(height: 12),
             Text(
-              'Hãy thực hiện giới hạn thời gian bằng cách nhấn nút thêm ứng dụng.',
+              'Thêm ứng dụng để quản lý',
               style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
