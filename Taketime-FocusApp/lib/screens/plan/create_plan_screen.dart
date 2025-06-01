@@ -324,7 +324,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
-            _isEditing ? 'Chỉnh sửa kế hoạch' : 'Tạo kế hoạch mới',
+            _isEditing ? 'CHỈNH SỬA KẾ HOẠCH' : 'TẠO KẾ HOẠCH MỚI',
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : Colors.white,
@@ -348,7 +348,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                 // Title field
                 FadeInDown(
                   duration: const Duration(milliseconds: 400),
-                  child: _buildSectionTitle('Tiêu đề', Icons.title),
+                  child: _buildSectionTitle('Tiêu đề', Icons.title_outlined),
                 ),
                 FadeInDown(
                   duration: const Duration(milliseconds: 500),
@@ -356,7 +356,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                     child: TextFormField(
                       controller: _titleController,
                       style: GoogleFonts.poppins(
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? Colors.white : Colors.black54,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Nhập tiêu đề kế hoạch',
@@ -402,7 +402,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                             DateFormat.yMMMMd().format(_startTime),
                             style: GoogleFonts.poppins(
                               fontSize: 16,
-                              color: isDark ? Colors.white : Colors.black87,
+                              color: isDark ? Colors.white : Colors.black54,
                             ),
                           ),
                           Icon(
@@ -453,7 +453,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
                                     color:
-                                        isDark ? Colors.white : Colors.black87,
+                                        isDark ? Colors.white : Colors.black54,
                                   ),
                                 ),
                               ],
@@ -620,14 +620,14 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
       padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
+          Icon(icon, size: 18, color: Colors.white),
           const SizedBox(width: 8),
           Text(
             title,
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : Colors.black87,
+              color: isDark ? Colors.white : Colors.white,
             ),
           ),
         ],
