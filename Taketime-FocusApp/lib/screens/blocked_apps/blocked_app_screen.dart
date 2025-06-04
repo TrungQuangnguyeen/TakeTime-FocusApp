@@ -25,7 +25,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
   late List<Map<String, dynamic>> _blockedApps = [];
 
   // Lưu trữ dữ liệu theo dõi thời gian sử dụng
-  final Map<String, int> _appUsageTime = {};
+  final Map<String, int> _appUsageTime = {};  
 
   // Lưu trữ danh sách các ứng dụng đang chạy
   final Map<String, bool> _isAppRunning = {};

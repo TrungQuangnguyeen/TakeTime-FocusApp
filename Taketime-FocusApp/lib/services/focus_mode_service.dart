@@ -64,7 +64,7 @@ class FocusModeService {
   }
 
   Future<DailyFocusStats?> getDailyFocusStats() async {
-    final url = Uri.parse('$baseUrl/api/FocusMode/daily-stats');
+    final url = Uri.parse('$baseUrl/api/FocusMode/stats/daily');
     try {
       final response = await http.get(url, headers: _headers);
 
