@@ -21,7 +21,6 @@ class PlanDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final planProvider = Provider.of<PlanProvider>(context);
 
     // Format dates and times
     final dateFormatter = DateFormat.yMMMMd();
@@ -113,48 +112,23 @@ class PlanDetailScreen extends StatelessWidget {
     }
 
     void toggleCompletionStatus() async {
-      // Determine the new status
-      final newStatus =
-          plan.isCompleted ? PlanStatus.inProgress : PlanStatus.completed;
-
-      // Prepare the update data
-      final Map<String, dynamic> updates = {
-        'status': newStatus.toString().split('.').last,
-      };
-
       // Get UserProvider instance
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final planProvider = Provider.of<PlanProvider>(context, listen: false);
 
-      // Call the API method to update the task status
-      bool success = await Provider.of<PlanProvider>(
+      // Call togglePlanCompletion
+      await planProvider.togglePlanCompletion(plan.id, userProvider);
+
+      // Show success notification
+      TopNotification.show(
         context,
-        listen: false,
-      ).updateTask(plan.id, updates, userProvider);
-
-      if (success) {
-        // Show success notification
-        TopNotification.show(
-          context,
-          message:
-              newStatus == PlanStatus.completed
-                  ? 'Đã đánh dấu hoàn thành'
-                  : 'Đã đánh dấu chưa hoàn thành',
-          backgroundColor:
-              newStatus == PlanStatus.completed ? Colors.green : Colors.orange,
-          icon:
-              newStatus == PlanStatus.completed
-                  ? Icons.check_circle
-                  : Icons.replay,
-        );
-      } else {
-        // Show error notification if update failed
-        TopNotification.show(
-          context,
-          message: 'Lỗi khi cập nhật trạng thái kế hoạch.',
-          backgroundColor: Colors.red,
-          icon: Icons.error,
-        );
-      }
+        message:
+            plan.isCompleted
+                ? 'Đã đánh dấu chưa hoàn thành'
+                : 'Đã đánh dấu hoàn thành',
+        backgroundColor: plan.isCompleted ? Colors.orange : Colors.green,
+        icon: plan.isCompleted ? Icons.replay : Icons.check_circle,
+      );
     }
 
     return GradientBackground(

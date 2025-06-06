@@ -37,8 +37,7 @@ class _PlanScreenState extends State<PlanScreen>
     // Thiết lập timer cập nhật trạng thái mỗi 30 giây
     _statusUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       final planProvider = Provider.of<PlanProvider>(context, listen: false);
-      planProvider
-          .notifyListeners(); // Kích hoạt getter plans để cập nhật trạng thái
+      planProvider.notifyListeners();
     });
   }
 
@@ -72,11 +71,11 @@ class _PlanScreenState extends State<PlanScreen>
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
-            'Kế Hoạch',
+            'KẾ HOẠCH',
             style: GoogleFonts.poppins(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              color: isDark ? Colors.white : Colors.white,
             ),
           ),
           centerTitle: true,
@@ -86,7 +85,7 @@ class _PlanScreenState extends State<PlanScreen>
                 _calendarFormat == table_calendar.CalendarFormat.month
                     ? Icons.calendar_view_week
                     : Icons.calendar_view_month,
-                color: isDark ? Colors.white : Colors.black87,
+                color: isDark ? Colors.white : Colors.white,
               ),
               onPressed: () {
                 setState(() {

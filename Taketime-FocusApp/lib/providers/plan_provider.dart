@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:collection';
 import '../models/plan_model.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './user_provider.dart';
 import '../services/notification_service.dart';
-import 'dart:developer' as developer;
 
 class PlanProvider with ChangeNotifier {
   final List<Plan> _plans = [];
@@ -25,13 +23,20 @@ class PlanProvider with ChangeNotifier {
   // Get plans for a specific date
   List<Plan> getPlansForDate(DateTime date) {
     _updatePlanStatuses();
+    // Chuẩn hóa ngày được chọn để chỉ lấy phần ngày, tháng, năm
+    final normalizedSelectedDate = DateTime(date.year, date.month, date.day);
+
     final plans =
         _plans
             .where(
               (plan) =>
-                  plan.startTime.year == date.year &&
-                  plan.startTime.month == date.month &&
-                  plan.startTime.day == date.day,
+                  // Chuẩn hóa startTime của plan để chỉ lấy phần ngày, tháng, năm trước khi so sánh
+                  DateTime(
+                    plan.startTime.year,
+                    plan.startTime.month,
+                    plan.startTime.day,
+                  ) ==
+                  normalizedSelectedDate,
             )
             .toList();
 
@@ -98,16 +103,31 @@ class PlanProvider with ChangeNotifier {
   }
 
   // Toggle plan completion status
-  void togglePlanCompletion(String id) {
+  Future<void> togglePlanCompletion(
+    String id,
+    UserProvider userProvider,
+  ) async {
     final index = _plans.indexWhere((plan) => plan.id == id);
     if (index != -1) {
       final plan = _plans[index];
-      _plans[index] = plan.copyWith(
-        isCompleted: !plan.isCompleted,
-        status:
-            !plan.isCompleted ? PlanStatus.completed : PlanStatus.inProgress,
+      final now = DateTime.now();
+      final planDate = DateTime(
+        plan.startTime.year,
+        plan.startTime.month,
+        plan.startTime.day,
       );
-      notifyListeners();
+      final today = DateTime(now.year, now.month, now.day);
+
+      if (planDate.isBefore(today)) {
+        // Nếu kế hoạch đã qua ngày, xóa khỏi database
+        await deleteTaskApi(id, userProvider);
+      } else {
+        // Nếu kế hoạch trong ngày, cập nhật trạng thái hoàn thành
+        final updates = {
+          'status': !plan.isCompleted ? 'completed' : 'inProgress',
+        };
+        await updateTask(id, updates, userProvider);
+      }
     }
   }
 
@@ -132,99 +152,6 @@ class PlanProvider with ChangeNotifier {
         _plans[i] = plan.copyWith(status: PlanStatus.inProgress);
       }
     }
-  }
-
-  // Add sample plans for testing
-  void _addSamplePlans() {
-    final now = DateTime.now();
-
-    // Today's plans
-    addPlan(
-      Plan(
-        id: '1',
-        title: 'Họp nhóm dự án',
-        startTime: DateTime(now.year, now.month, now.day, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day, 10, 30),
-        note: 'Thảo luận về tiến độ và kế hoạch tiếp theo',
-        priority: PlanPriority.high,
-      ),
-    );
-
-    addPlan(
-      Plan(
-        id: '2',
-        title: 'Gửi báo cáo hằng tuần',
-        startTime: DateTime(now.year, now.month, now.day, 14, 0),
-        endTime: DateTime(now.year, now.month, now.day, 15, 0),
-        note: 'Tổng hợp công việc đã hoàn thành trong tuần',
-        priority: PlanPriority.medium,
-      ),
-    );
-
-    // Tomorrow's plans
-    final tomorrow = now.add(const Duration(days: 1));
-    addPlan(
-      Plan(
-        id: '3',
-        title: 'Học Flutter',
-        startTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0),
-        endTime: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 10, 0),
-        note: 'Học về state management và Provider',
-        priority: PlanPriority.medium,
-      ),
-    );
-
-    // Day after tomorrow
-    final dayAfterTomorrow = now.add(const Duration(days: 2));
-    addPlan(
-      Plan(
-        id: '4',
-        title: 'Xem lại tiến độ dự án',
-        startTime: DateTime(
-          dayAfterTomorrow.year,
-          dayAfterTomorrow.month,
-          dayAfterTomorrow.day,
-          13,
-          0,
-        ),
-        endTime: DateTime(
-          dayAfterTomorrow.year,
-          dayAfterTomorrow.month,
-          dayAfterTomorrow.day,
-          14,
-          30,
-        ),
-        note: 'Chuẩn bị bản trình bày và demo',
-        priority: PlanPriority.high,
-      ),
-    );
-
-    // Next week
-    final nextWeek = now.add(const Duration(days: 7));
-    addPlan(
-      Plan(
-        id: '5',
-        title: 'Nghỉ ngơi',
-        startTime: DateTime(nextWeek.year, nextWeek.month, nextWeek.day, 10, 0),
-        endTime: DateTime(nextWeek.year, nextWeek.month, nextWeek.day, 18, 0),
-        note: 'Đi chơi với gia đình',
-        priority: PlanPriority.low,
-      ),
-    );
-
-    // Completed plan
-    addPlan(
-      Plan(
-        id: '6',
-        title: 'Hoàn thành thiết kế UI',
-        startTime: DateTime(now.year, now.month, now.day - 1, 9, 0),
-        endTime: DateTime(now.year, now.month, now.day - 1, 12, 0),
-        note: 'Thiết kế UI cho ứng dụng quản lý thời gian',
-        priority: PlanPriority.high,
-        isCompleted: true,
-        status: PlanStatus.completed,
-      ),
-    );
   }
 
   // Hàm fetch danh sách Task từ backend (nhận UserProvider instance)
@@ -407,7 +334,6 @@ class PlanProvider with ChangeNotifier {
     }
 
     final startTime = plan.startTime;
-    final endTime = plan.endTime;
 
     // 1. Thông báo 30 phút trước Timestart
     final thirtyMinBeforeStart = startTime.subtract(
@@ -599,6 +525,69 @@ class PlanProvider with ChangeNotifier {
       }
     } catch (e, stackTrace) {
       print('[PlanProvider] Error adding task via API (in catch block): $e');
+      print('[PlanProvider] StackTrace: $stackTrace');
+      return false;
+    }
+  }
+
+  // TODO: Implement createTask method to send a POST request to the backend API /api/Task
+  Future<bool> createTask(Plan plan, UserProvider userProvider) async {
+    print('[PlanProvider] createTask called.');
+
+    if (userProvider.currentUser == null ||
+        userProvider.currentUser!.projectId == null) {
+      print(
+        '[PlanProvider] createTask: User not logged in or projectId is null. Aborting task creation.',
+      );
+      return false;
+    }
+
+    // Lấy projectId từ userProvider và gán vào plan object trước khi gửi đi
+    // Tính toán reminderTime (10 phút trước deadline)
+    final calculatedReminderTime = plan.endTime.subtract(
+      const Duration(minutes: 10),
+    );
+
+    // Tạo bản sao của plan với projectId, reminderTime đã tính toán và trạng thái mặc định là upcoming
+    final planWithFullData = plan.copyWith(
+      id: '', // ID sẽ được backend tạo, gửi rỗng hoặc null
+      projectId: userProvider.currentUser!.projectId,
+      reminderTime: calculatedReminderTime,
+      status: PlanStatus.upcoming, // Trạng thái mặc định khi tạo mới
+    );
+
+    // Gửi yêu cầu POST đến backend API /api/Task với dữ liệu plan.toJson()
+    final url = Uri.parse('${userProvider.baseUrl}/api/Task');
+    print('[PlanProvider] Attempting to create task at URL: $url');
+    print('[PlanProvider] Sending headers: ${userProvider.headers}');
+    // Sử dụng planWithFullData để tạo body, đảm bảo các trường mới được bao gồm
+    print(
+      '[PlanProvider] Sending body: ${jsonEncode(planWithFullData.toJson())}',
+    );
+
+    try {
+      final response = await http.post(
+        url,
+        headers: userProvider.headers,
+        body: jsonEncode(planWithFullData.toJson()),
+      );
+
+      print('[PlanProvider] Create Task Status Code: ${response.statusCode}');
+      print('[PlanProvider] Create Task Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('[PlanProvider] Task created successfully via API.');
+        // Sau khi tạo thành công trên backend, fetch lại danh sách plans để cập nhật UI và schedule notifications
+        await fetchPlans(userProvider);
+        return true;
+      } else {
+        print(
+          '[PlanProvider] Failed to create task: ${response.statusCode} ${response.body}',
+        );
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('[PlanProvider] Error creating task via API (in catch block): $e');
       print('[PlanProvider] StackTrace: $stackTrace');
       return false;
     }

@@ -65,31 +65,20 @@ class FocusModeService {
 
   Future<DailyFocusStats?> getDailyFocusStats() async {
     final url = Uri.parse('$baseUrl/api/FocusMode/stats/daily');
-    debugPrint('DEBUG: Attempting to fetch daily focus stats from URL: $url');
     try {
       final response = await http.get(url, headers: _headers);
-
-      debugPrint(
-        'DEBUG: Daily focus stats response status code: ${response.statusCode}',
-      );
-      debugPrint('DEBUG: Daily focus stats response body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
           final Map<String, dynamic> data = jsonDecode(response.body);
           return DailyFocusStats.fromJson(data);
         } catch (e) {
-          debugPrint('DEBUG: Error parsing daily focus stats JSON: $e');
           return null;
         }
       } else {
-        debugPrint(
-          'DEBUG: Failed to load daily focus stats with status code: ${response.statusCode}. Response body: ${response.body}',
-        );
         return null;
       }
     } catch (e) {
-      debugPrint('DEBUG: Error fetching daily focus stats (exception): $e');
       return null;
     }
   }

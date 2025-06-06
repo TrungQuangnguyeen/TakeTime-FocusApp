@@ -14,7 +14,11 @@ class MainScreen extends StatefulWidget {
   final Function(bool) onThemeChanged;
   final VoidCallback onLogout;
 
-  const MainScreen({super.key, required this.onThemeChanged, required this.onLogout});
+  const MainScreen({
+    super.key,
+    required this.onThemeChanged,
+    required this.onLogout,
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -38,10 +42,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
     );
     _fabAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _fabAnimationController,
-        curve: Curves.easeOut,
-      ),
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeOut),
     );
     _fabAnimationController.forward();
     _updateScreens();
@@ -56,13 +57,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       const FocusModeScreen(),
       const FriendScreen(),
       // Pass the AuthService instance to ProfileScreen
-      ProfileScreen(authService: _authService, onThemeChanged: widget.onThemeChanged), 
+      ProfileScreen(
+        authService: _authService,
+        onThemeChanged: widget.onThemeChanged,
+      ),
     ]);
   }
 
   void _onItemTapped(int index) {
     if (_selectedIndex == index) return;
-    
+
     setState(() {
       _selectedIndex = index;
       _pageController.animateToPage(
@@ -73,49 +77,47 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark
-          ? SystemUiOverlayStyle.light.copyWith(
-              systemNavigationBarColor: const Color(0xFF1A1A2E),
-              statusBarColor: Colors.transparent,
-            )
-          : SystemUiOverlayStyle.dark.copyWith(
-              systemNavigationBarColor: Colors.white,
-              statusBarColor: Colors.transparent,
-            ),
+      value:
+          isDark
+              ? SystemUiOverlayStyle.light.copyWith(
+                systemNavigationBarColor: const Color(0xFF1A1A2E),
+                statusBarColor: Colors.transparent,
+              )
+              : SystemUiOverlayStyle.dark.copyWith(
+                systemNavigationBarColor: Colors.white,
+                statusBarColor: Colors.transparent,
+              ),
       child: Scaffold(
         body: PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           children: _screens,
         ),
-        floatingActionButton: _selectedIndex == 1
-            ? ScaleTransition(
-                scale: _fabAnimation,
-                child: FloatingActionButton(
-                  onPressed: () {
-                    // Mở trực tiếp trang CreatePlanScreen khi nhấn vào nút + ở tab kế hoạch
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const CreatePlanScreen(),
-                      ),
-                    );
-                  },
-                  elevation: 4,
-                  backgroundColor: primaryColor,
-                  child: const Icon(
-                    Icons.add,
-                    color: Colors.white,
+        floatingActionButton:
+            _selectedIndex == 1
+                ? ScaleTransition(
+                  scale: _fabAnimation,
+                  child: FloatingActionButton(
+                    onPressed: () {
+                      // Mở trực tiếp trang CreatePlanScreen khi nhấn vào nút + ở tab kế hoạch
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CreatePlanScreen(),
+                        ),
+                      );
+                    },
+                    elevation: 4,
+                    backgroundColor: primaryColor,
+                    child: const Icon(Icons.add, color: Colors.white),
                   ),
-                ),
-              )
-            : null,
+                )
+                : null,
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
@@ -206,7 +208,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }) {
     final isSelected = _selectedIndex == index;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    
+
     return BottomNavigationBarItem(
       icon: Column(
         children: [

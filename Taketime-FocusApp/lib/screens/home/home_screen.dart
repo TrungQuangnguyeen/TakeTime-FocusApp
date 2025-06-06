@@ -31,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _randomMessages = [
     'Chúc bạn một ngày làm việc hiệu quả!',
     'Tập trung cao độ để đạt mục tiêu nhé!',
-    'Hãy biến hôm nay thành một ngày tuyệt vời!',
     'Luôn giữ năng lượng tích cực nha!',
     'Mọi nỗ lực của bạn sẽ được đền đáp!',
     'Một ngày mới, những cơ hội mới!',
@@ -127,7 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final planProvider = Provider.of<PlanProvider>(context);
 
     // Hiển thị màn hình loading nếu dữ liệu đang được tải
     if (_isDataLoading) {
@@ -240,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Thống kê ngày hôm nay',
+                      'Thống kê ngày hôm nay của bạn',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -290,9 +288,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
+                        // Ô thống kê mới cho số lượng kế hoạch hôm nay
                         Expanded(
-                          child:
-                              Container(), // Có thể để trống hoặc xóa Expanded này
+                          child: Consumer<PlanProvider>(
+                            builder: (context, planProvider, child) {
+                              final todayPlans = planProvider.getPlansForDate(
+                                DateTime.now(),
+                              );
+                              final completedPlans =
+                                  todayPlans
+                                      .where((plan) => plan.isCompleted)
+                                      .length;
+                              final totalPlans = todayPlans.length;
+                              return _buildStatItem(
+                                context,
+                                Icons.assignment_outlined,
+                                '$completedPlans/$totalPlans',
+                                'Kế hoạch hoàn thành',
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -304,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Features section
               Text(
-                'Công việc hôm nay',
+                'Công việc đến hạn hôm nay',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 
 enum PlanPriority { low, medium, high }
 
@@ -14,8 +13,9 @@ class Plan {
   final DateTime endTime;
   final String note;
   final PlanPriority priority;
-  final bool isCompleted;
   final PlanStatus status;
+  final String? projectId;
+  final DateTime? reminderTime;
 
   const Plan({
     required this.id,
@@ -24,9 +24,13 @@ class Plan {
     required this.endTime,
     this.note = '',
     this.priority = PlanPriority.medium,
-    this.isCompleted = false,
-    this.status = PlanStatus.upcoming,
+    required this.status,
+    this.projectId,
+    this.reminderTime,
   });
+
+  // Lấy trạng thái hoàn thành dựa trên status
+  bool get isCompleted => status == PlanStatus.completed;
 
   // Lấy icon tương ứng với mức độ ưu tiên
   IconData getPriorityIcon() {
@@ -54,66 +58,30 @@ class Plan {
 
   // Lấy màu tương ứng với trạng thái
   Color getStatusColor() {
-    final now = DateTime.now();
-
-    // Ưu tiên hiển thị 'Completed' nếu status từ backend là completed
-    if (status == PlanStatus.completed) {
-      return Colors.green;
+    switch (status) {
+      case PlanStatus.upcoming:
+        return Colors.blue;
+      case PlanStatus.inProgress:
+        return Colors.amber;
+      case PlanStatus.completed:
+        return Colors.green;
+      case PlanStatus.overdue:
+        return Colors.red;
     }
-
-    // Kiểm tra trạng thái dựa trên thời gian thực nếu chưa hoàn thành
-    if (endTime.isBefore(now)) {
-      return Colors.red; // Overdue
-    } else if (startTime.isBefore(now) || startTime.isAtSameMomentAs(now)) {
-      // Nếu timestart đã đến hoặc đang diễn ra và chưa quá hạn
-      return Colors.amber; // InProgress
-    } else {
-      // If startTime is in the future
-      return Colors.blue; // Upcoming
-    }
-    // Fallback to status from backend if needed (shouldn't be reached with above logic)
-    // switch (status) {
-    //   case PlanStatus.upcoming:
-    //     return Colors.blue;
-    //   case PlanStatus.inProgress:
-    //     return Colors.amber;
-    //   case PlanStatus.completed:
-    //     return Colors.green;
-    //   case PlanStatus.overdue:
-    //     return Colors.red;
-    // }
   }
 
   // Lấy chuỗi văn bản mô tả trạng thái
   String getStatusText() {
-    final now = DateTime.now();
-
-    // Ưu tiên hiển thị 'Hoàn thành' nếu status từ backend là completed
-    if (status == PlanStatus.completed) {
-      return 'Hoàn thành';
+    switch (status) {
+      case PlanStatus.upcoming:
+        return 'Sắp tới';
+      case PlanStatus.inProgress:
+        return 'Đang diễn ra';
+      case PlanStatus.completed:
+        return 'Hoàn thành';
+      case PlanStatus.overdue:
+        return 'Quá hạn';
     }
-
-    // Kiểm tra trạng thái dựa trên thời gian thực nếu chưa hoàn thành
-    if (endTime.isBefore(now)) {
-      return 'Quá hạn'; // Overdue
-    } else if (startTime.isBefore(now) || startTime.isAtSameMomentAs(now)) {
-      // Nếu timestart đã đến hoặc đang diễn ra và chưa quá hạn
-      return 'Đang diễn ra'; // InProgress
-    } else {
-      // If startTime is in the future
-      return 'Sắp tới'; // Upcoming
-    }
-    // Fallback to status from backend if needed (shouldn't be reached with above logic)
-    // switch (status) {
-    //   case PlanStatus.upcoming:
-    //     return 'Sắp tới';
-    //   case PlanStatus.inProgress:
-    //     return 'Đang diễn ra';
-    //   case PlanStatus.completed:
-    //     return 'Hoàn thành';
-    //   case PlanStatus.overdue:
-    //     return 'Quá hạn';
-    // }
   }
 
   // Tạo bản sao với một số thuộc tính được cập nhật
@@ -124,8 +92,9 @@ class Plan {
     DateTime? endTime,
     String? note,
     PlanPriority? priority,
-    bool? isCompleted,
     PlanStatus? status,
+    String? projectId,
+    DateTime? reminderTime,
   }) {
     return Plan(
       id: id ?? this.id,
@@ -134,18 +103,27 @@ class Plan {
       endTime: endTime ?? this.endTime,
       note: note ?? this.note,
       priority: priority ?? this.priority,
-      isCompleted: isCompleted ?? this.isCompleted,
       status: status ?? this.status,
+      projectId: projectId ?? this.projectId,
+      reminderTime: reminderTime ?? this.reminderTime,
     );
   }
 
   @override
   String toString() {
-    return 'Plan{id: $id, title: $title, startTime: $startTime, endTime: $endTime, note: $note, priority: $priority, isCompleted: $isCompleted, status: $status}';
+    return 'Plan{id: $id, title: $title, startTime: $startTime, endTime: $endTime, note: $note, priority: $priority, status: $status, projectId: $projectId, reminderTime: $reminderTime}';
   }
 
   // Factory constructor để tạo đối tượng Plan từ JSON
   factory Plan.fromJson(Map<String, dynamic> json) {
+    // Hàm helper để safely get a value and cast it
+    T? safeGet<T>(Map<String, dynamic> json, String key) {
+      if (json.containsKey(key) && json[key] != null && json[key] is T) {
+        return json[key] as T;
+      }
+      return null;
+    }
+
     // Hàm helper để parse DateTime hoặc trả về null nếu giá trị null/invalid
     DateTime? parseDateTime(dynamic value) {
       if (value == null) return null;
@@ -202,23 +180,33 @@ class Plan {
       }
     }
 
+    // Sử dụng safeGet và parseDateTime cho các trường thời gian
+    final startTime = parseDateTime(json['timestart'] ?? json['startTime']);
+    final endTime = parseDateTime(json['deadline'] ?? json['endTime']);
+    final reminderTime = parseDateTime(
+      json['reminder_time'] ?? json['reminderTime'],
+    );
+
     return Plan(
-      id: json['task_id'] as String, // Backend sử dụng 'task_id'
-      title: json['title'] as String? ?? '', // Đảm bảo non-null
-      startTime:
-          parseDateTime(json['timestart']) ??
-          DateTime.now(), // Sử dụng parseDateTime
+      id:
+          safeGet<String>(json, 'task_id') ??
+          safeGet<String>(json, 'id') ??
+          '', // Backend sử dụng 'task_id' hoặc 'id'
+      title: safeGet<String>(json, 'title') ?? '', // Đảm bảo non-null
+      startTime: startTime ?? DateTime.now(), // Sử dụng biến đã parse
       endTime:
-          parseDateTime(json['deadline']) ??
-          DateTime.now().add(const Duration(hours: 1)), // Sử dụng parseDateTime
+          endTime ??
+          DateTime.now().add(const Duration(hours: 1)), // Sử dụng biến đã parse
       note:
-          json['description'] as String? ??
-          '', // Backend sử dụng 'description', đảm bảo non-null
-      priority: parsePriority(json['priority']), // Sử dụng parsePriority
-      isCompleted:
-          json['is_completed'] as bool? ??
-          false, // Giả định có trường is_completed (hoặc logic tính toán)
+          safeGet<String>(json, 'description') ??
+          safeGet<String>(json, 'note') ??
+          '', // Backend sử dụng 'description' hoặc 'note'
+      priority: parsePriority(json['priority']),
       status: parseStatus(json['status']), // Sử dụng hàm parseStatus
+      projectId:
+          safeGet<String>(json, 'project_id') ??
+          safeGet<String>(json, 'projectId'), // Parse projectId
+      reminderTime: reminderTime, // Sử dụng biến đã parse
     );
   }
 
@@ -232,13 +220,20 @@ class Plan {
           startTime.toIso8601String(), // Sử dụng 'timestart' cho startTime
       'deadline': endTime.toIso8601String(), // Sử dụng 'deadline' cho endTime
       'priority':
-          priority
+          // Ánh xạ PlanPriority.medium thành 'mid'
+          priority == PlanPriority.medium
+              ? 'mid'
+              : priority.toString().split('.').last.toLowerCase(),
+      'status':
+          status
               .toString()
               .split('.')
               .last
-              .toLowerCase(), // Chuyển đổi enum sang String lowercase
-      //'is_completed': isCompleted, // Có thể không cần gửi khi tạo mới
-      //'status': status.toString().split('.').last.toLowerCase(), // Có thể không cần gửi khi tạo mới
+              .toLowerCase(), // Thêm status vào toJson
+      'project_id': projectId, // Thêm projectId vào toJson
+      'reminder_time':
+          reminderTime
+              ?.toIso8601String(), // Thêm reminderTime vào toJson (có thể null)
     };
   }
 }
