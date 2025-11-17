@@ -9,18 +9,18 @@ import '../services/notification_service.dart';
 class PlanProvider with ChangeNotifier {
   final List<Plan> _plans = [];
 
-  // Sample data for testing (will be removed in production)
+  // Dữ liệu mẫu để test (sẽ được xóa trong phiên bản production)
   PlanProvider() {
     // _addSamplePlans();
   }
 
-  // Get plans sorted by date
+  // Lấy danh sách kế hoạch đã sắp xếp theo ngày
   UnmodifiableListView<Plan> get plans {
     _updatePlanStatuses();
     return UnmodifiableListView(_plans);
   }
 
-  // Get plans for a specific date
+  // Lấy kế hoạch cho một ngày cụ thể
   List<Plan> getPlansForDate(DateTime date) {
     _updatePlanStatuses();
     // Chuẩn hóa ngày được chọn để chỉ lấy phần ngày, tháng, năm
@@ -55,7 +55,7 @@ class PlanProvider with ChangeNotifier {
     return plans;
   }
 
-  // Get plans for a specific week
+  // Lấy kế hoạch cho một tuần cụ thể
   List<Plan> getPlansForWeek(DateTime startOfWeek) {
     _updatePlanStatuses();
     final endOfWeek = startOfWeek.add(const Duration(days: 7));
@@ -66,13 +66,12 @@ class PlanProvider with ChangeNotifier {
         plan.startTime.month,
         plan.startTime.day,
       );
-
       return planDate.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
           planDate.isBefore(endOfWeek);
     }).toList();
   }
 
-  // Add a new plan
+  // Thêm kế hoạch mới
   void addPlan(Plan plan) {
     _plans.add(plan);
     _updatePlanStatuses();
@@ -80,7 +79,7 @@ class PlanProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Update a plan
+  // Cập nhật kế hoạch
   void updatePlan(String id, Plan updatedPlan) {
     final index = _plans.indexWhere((plan) => plan.id == id);
     if (index != -1) {
@@ -92,7 +91,7 @@ class PlanProvider with ChangeNotifier {
     }
   }
 
-  // Delete a plan
+  // Xóa kế hoạch
   void deletePlan(String id) {
     final index = _plans.indexWhere((plan) => plan.id == id);
     if (index != -1) {
@@ -102,7 +101,7 @@ class PlanProvider with ChangeNotifier {
     }
   }
 
-  // Toggle plan completion status
+  // Chuyển đổi trạng thái hoàn thành của kế hoạch
   Future<void> togglePlanCompletion(
     String id,
     UserProvider userProvider,
@@ -131,19 +130,19 @@ class PlanProvider with ChangeNotifier {
     }
   }
 
-  // Update plan statuses based on current time
+  // Cập nhật trạng thái kế hoạch dựa trên thời gian hiện tại
   void _updatePlanStatuses() {
     final now = DateTime.now();
 
     for (int i = 0; i < _plans.length; i++) {
       final plan = _plans[i];
 
-      // Skip completed plans
+      // Bỏ qua các kế hoạch đã hoàn thành
       if (plan.isCompleted) {
         continue;
       }
 
-      // Check if plan is overdue
+      // Kiểm tra nếu kế hoạch quá hạn
       if (plan.endTime.isBefore(now) && plan.status != PlanStatus.completed) {
         _plans[i] = plan.copyWith(status: PlanStatus.overdue);
       } else if (plan.startTime.isBefore(now) &&
@@ -154,7 +153,7 @@ class PlanProvider with ChangeNotifier {
     }
   }
 
-  // Hàm fetch danh sách Task từ backend (nhận UserProvider instance)
+  // Hàm lấy danh sách Task từ backend (nhận UserProvider instance)
   Future<void> fetchPlans(UserProvider userProvider) async {
     print('[PlanProvider] fetchPlans called.');
 
@@ -165,7 +164,7 @@ class PlanProvider with ChangeNotifier {
       return;
     }
 
-    // Có thể thêm loading state nếu cần
+    // Có thể thêm trạng thái loading nếu cần
     // _isLoading = true; notifyListeners();
 
     try {
@@ -190,7 +189,7 @@ class PlanProvider with ChangeNotifier {
         // Cập nhật trạng thái local sau khi fetch
         _updatePlanStatuses();
 
-        // Schedule notifications only for upcoming or in-progress plans
+        // Lên lịch thông báo chỉ cho các kế hoạch sắp tới hoặc đang thực hiện
         for (var plan in _plans) {
           if (plan.status == PlanStatus.upcoming ||
               plan.status == PlanStatus.inProgress) {
@@ -200,8 +199,6 @@ class PlanProvider with ChangeNotifier {
             await _cancelNotificationsForPlan(plan);
           }
         }
-
-        notifyListeners();
       } else {
         print(
           '[PlanProvider] Failed to fetch tasks: ${response.statusCode} ${response.body}',

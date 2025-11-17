@@ -127,7 +127,7 @@ class _MyAppState extends State<MyApp> {
           error: const Color(0xFFE53935),
         ),
         textTheme: GoogleFonts.poppinsTextTheme(),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -211,7 +211,7 @@ class _MyAppState extends State<MyApp> {
           error: const Color(0xFFE53935),
         ),
         textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
