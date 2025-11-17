@@ -105,7 +105,7 @@ class UserModel {
       print(
         "[UserModel.fromJson] CRITICAL ERROR: User ID is empty after parsing. Original JSON: $json",
       );
-      // Depending on how strict you want to be, you could throw an exception
+      // Tùy thuộc vào mức độ nghiêm ngặt bạn muốn, bạn có thể ném ra ngoại lệ
       // throw Exception("User ID is missing or null in UserModel.fromJson");
     }
     if (parsedUsername.isEmpty) {

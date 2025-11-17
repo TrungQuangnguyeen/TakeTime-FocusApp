@@ -32,7 +32,7 @@ dependencies:
     sdk: flutter
   uuid: ^4.5.1
 
-  # The following adds the Cupertino Icons font to your application.
+  # The following adds the Cupertino Icons font to your applica`tion.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   dart_frog: ^1.2.0
@@ -49,7 +49,7 @@ dependencies:
   table_calendar: ^3.0.9
   shared_preferences: ^2.2.2
   image_picker: ^1.0.7
-  installed_apps: ^1.3.1  # Thay thế device_apps bằng installed_apps
+  installed_apps: ^1.3.1  # lấy ứng dụng trong điện thoại
   audioplayers: ^5.2.1  # Thêm package audioplayers để phát âm thanh
   flutter_facebook_auth: ^6.0.0 # Added for Facebook login - may need specific Supabase integration or a different package
   google_sign_in: ^6.1.5 # Added for Google login - may need specific Supabase integration or a different package

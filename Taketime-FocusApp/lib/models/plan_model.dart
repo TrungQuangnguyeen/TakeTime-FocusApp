@@ -29,10 +29,8 @@ class Plan {
     this.reminderTime,
   });
 
-  // Lấy trạng thái hoàn thành dựa trên status
   bool get isCompleted => status == PlanStatus.completed;
 
-  // Lấy icon tương ứng với mức độ ưu tiên
   IconData getPriorityIcon() {
     switch (priority) {
       case PlanPriority.low:
@@ -44,7 +42,6 @@ class Plan {
     }
   }
 
-  // Lấy màu tương ứng với mức độ ưu tiên
   Color getPriorityColor() {
     switch (priority) {
       case PlanPriority.low:
@@ -56,7 +53,6 @@ class Plan {
     }
   }
 
-  // Lấy màu tương ứng với trạng thái
   Color getStatusColor() {
     switch (status) {
       case PlanStatus.upcoming:
@@ -70,7 +66,6 @@ class Plan {
     }
   }
 
-  // Lấy chuỗi văn bản mô tả trạng thái
   String getStatusText() {
     switch (status) {
       case PlanStatus.upcoming:
@@ -84,7 +79,6 @@ class Plan {
     }
   }
 
-  // Tạo bản sao với một số thuộc tính được cập nhật
   Plan copyWith({
     String? id,
     String? title,
@@ -114,9 +108,7 @@ class Plan {
     return 'Plan{id: $id, title: $title, startTime: $startTime, endTime: $endTime, note: $note, priority: $priority, status: $status, projectId: $projectId, reminderTime: $reminderTime}';
   }
 
-  // Factory constructor để tạo đối tượng Plan từ JSON
   factory Plan.fromJson(Map<String, dynamic> json) {
-    // Hàm helper để safely get a value and cast it
     T? safeGet<T>(Map<String, dynamic> json, String key) {
       if (json.containsKey(key) && json[key] != null && json[key] is T) {
         return json[key] as T;
@@ -124,23 +116,17 @@ class Plan {
       return null;
     }
 
-    // Hàm helper để parse DateTime hoặc trả về null nếu giá trị null/invalid
     DateTime? parseDateTime(dynamic value) {
       if (value == null) return null;
       try {
         // DateTime.parse có thể xử lý chuỗi ISO 8601 bao gồm cả múi giờ
-        return DateTime.parse(
-          value as String,
-        ).toLocal(); // <<< Chuyển sang múi giờ local để hiển thị
+        return DateTime.parse(value as String).toLocal();
       } catch (e) {
-        print(
-          'Error parsing DateTime: $value, Error: $e',
-        ); // Log lỗi parse DateTime
+        print('Error parsing DateTime: $value, Error: $e');
         return null;
       }
     }
 
-    // Hàm helper để parse priority string sang enum PlanPriority
     PlanPriority parsePriority(dynamic value) {
       if (value == null) return PlanPriority.medium; // Mặc định là medium
       final lowerCaseValue = (value as String).toLowerCase();
@@ -152,35 +138,29 @@ class Plan {
         case 'high':
           return PlanPriority.high;
         default:
-          print(
-            'Unknown priority value: $value',
-          ); // Log giá trị priority không mong muốn
-          return PlanPriority.medium; // Mặc định là medium
+          print('Unknown priority value: $value');
+          return PlanPriority.medium;
       }
     }
 
-    // Hàm helper để parse status string sang enum PlanStatus
     PlanStatus parseStatus(dynamic value) {
-      if (value == null) return PlanStatus.upcoming; // Mặc định là upcoming
+      if (value == null) return PlanStatus.upcoming;
       final lowerCaseValue = (value as String).toLowerCase();
       switch (lowerCaseValue) {
         case 'upcoming':
           return PlanStatus.upcoming;
-        case 'inprogress': // Giả định backend gửi 'inprogress'
+        case 'inprogress':
           return PlanStatus.inProgress;
         case 'completed':
           return PlanStatus.completed;
         case 'overdue':
           return PlanStatus.overdue;
         default:
-          print(
-            'Unknown status value: $value',
-          ); // Log giá trị status không mong muốn
-          return PlanStatus.upcoming; // Mặc định là upcoming
+          print('Unknown status value: $value');
+          return PlanStatus.upcoming;
       }
     }
 
-    // Sử dụng safeGet và parseDateTime cho các trường thời gian
     final startTime = parseDateTime(json['timestart'] ?? json['startTime']);
     final endTime = parseDateTime(json['deadline'] ?? json['endTime']);
     final reminderTime = parseDateTime(
@@ -188,52 +168,38 @@ class Plan {
     );
 
     return Plan(
-      id:
-          safeGet<String>(json, 'task_id') ??
-          safeGet<String>(json, 'id') ??
-          '', // Backend sử dụng 'task_id' hoặc 'id'
+      id: safeGet<String>(json, 'task_id') ?? safeGet<String>(json, 'id') ?? '',
       title: safeGet<String>(json, 'title') ?? '', // Đảm bảo non-null
-      startTime: startTime ?? DateTime.now(), // Sử dụng biến đã parse
+      startTime: startTime ?? DateTime.now(),
       endTime:
           endTime ??
           DateTime.now().add(const Duration(hours: 1)), // Sử dụng biến đã parse
       note:
           safeGet<String>(json, 'description') ??
           safeGet<String>(json, 'note') ??
-          '', // Backend sử dụng 'description' hoặc 'note'
+          '',
       priority: parsePriority(json['priority']),
-      status: parseStatus(json['status']), // Sử dụng hàm parseStatus
+      status: parseStatus(json['status']),
       projectId:
           safeGet<String>(json, 'project_id') ??
-          safeGet<String>(json, 'projectId'), // Parse projectId
-      reminderTime: reminderTime, // Sử dụng biến đã parse
+          safeGet<String>(json, 'projectId'),
+      reminderTime: reminderTime,
     );
   }
 
-  // Thêm phương thức toJson để chuyển đổi Plan object thành JSON
   Map<String, dynamic> toJson() {
     return {
-      //'id': id, // ID thường do backend tạo khi thêm mới
       'title': title,
-      'description': note, // Sử dụng 'description' cho note
-      'timestart':
-          startTime.toIso8601String(), // Sử dụng 'timestart' cho startTime
-      'deadline': endTime.toIso8601String(), // Sử dụng 'deadline' cho endTime
+      'description': note,
+      'timestart': startTime.toIso8601String(),
+      'deadline': endTime.toIso8601String(),
       'priority':
-          // Ánh xạ PlanPriority.medium thành 'mid'
           priority == PlanPriority.medium
               ? 'mid'
               : priority.toString().split('.').last.toLowerCase(),
-      'status':
-          status
-              .toString()
-              .split('.')
-              .last
-              .toLowerCase(), // Thêm status vào toJson
-      'project_id': projectId, // Thêm projectId vào toJson
-      'reminder_time':
-          reminderTime
-              ?.toIso8601String(), // Thêm reminderTime vào toJson (có thể null)
+      'status': status.toString().split('.').last.toLowerCase(),
+      'project_id': projectId,
+      'reminder_time': reminderTime?.toIso8601String(),
     };
   }
 }
