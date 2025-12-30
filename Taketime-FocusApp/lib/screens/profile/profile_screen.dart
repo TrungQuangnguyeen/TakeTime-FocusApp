@@ -840,38 +840,23 @@ class _ProfileScreenState extends State<ProfileScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          // Settings, và nút kiểm tra quyền
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () {
-                                  // Thêm chức năng đăng xuất cho nút cài đặt
-                                  _showSettingsMenu(context);
-                                },
-                                icon: const Icon(
-                                  Icons.settings,
-                                  color: Colors.white,
+                          // Nút kiểm tra quyền
+                          IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const PermissionSetupScreen(),
                                 ),
-                              ),
-                              // Nút kiểm tra quyền
-                              IconButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) =>
-                                              const PermissionSetupScreen(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.white,
-                                ),
-                                tooltip: 'Kiểm tra quyền',
-                              ),
-                            ],
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                            ),
+                            tooltip: 'Kiểm tra quyền',
                           ),
                         ],
                       ),
@@ -976,6 +961,38 @@ class _ProfileScreenState extends State<ProfileScreen>
                         ),
                       ),
 
+                      const SizedBox(height: 16),
+
+                      // Nút đăng xuất
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _showLogoutConfirmDialog(context);
+                        },
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: Text(
+                          'Đăng xuất',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            side: const BorderSide(
+                              color: Colors.white,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -1028,40 +1045,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ),
       ),
-    );
-  }
-
-  // Thêm hàm hiển thị menu cài đặt khi nhấn vào nút cài đặt
-  void _showSettingsMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return Container(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: Text('Cài đặt tài khoản', style: GoogleFonts.poppins()),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Có thể thêm các tùy chọn cài đặt khác ở đây
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: Text(
-                  'Đăng xuất',
-                  style: GoogleFonts.poppins(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showLogoutConfirmDialog(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
