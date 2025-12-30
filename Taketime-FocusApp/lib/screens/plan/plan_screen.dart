@@ -291,6 +291,7 @@ class _PlanScreenState extends State<PlanScreen>
             fontWeight: FontWeight.w600,
             color: isDark ? Colors.white : Colors.black87,
           ),
+          titleCentered: true,
           formatButtonVisible: false,
           leftChevronIcon: Icon(
             Icons.chevron_left,

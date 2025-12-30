@@ -14,7 +14,7 @@ class GoogleLoginButton extends StatelessWidget {
         height: 24.0,
         width: 24.0,
       ),
-      label: const Text('Đăng nhập với Google'),
+      label: const Text('Google'),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.black, backgroundColor: Colors.white,

@@ -105,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
 
-    debugPrint('DEBUG: DailyFocusStats received: $stats');
+    debugPrint('DEBUG: DailyFocu  sStats received: $stats');
 
     setState(() {
       if (stats != null) {
@@ -141,84 +141,96 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with User Info
-              Row(
-                children: [
-                  // Hiển thị Avatar
-                  _isLoadingProfile
-                      ? CircleAvatar(
-                        radius: 24,
-                        backgroundColor: theme.colorScheme.primary.withOpacity(
-                          0.2,
-                        ),
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white70,
-                        ),
-                      )
-                      : _avatarUrl != null && _avatarUrl!.isNotEmpty
-                      ? CircleAvatar(
-                        radius: 24,
-                        backgroundImage: NetworkImage(_avatarUrl!),
-                        onBackgroundImageError: (exception, stackTrace) {
-                          print(
-                            'Error loading avatar in HomeScreen: $exception',
-                          );
-                          // Có thể hiển thị một icon mặc định ở đây nếu muốn
-                        },
-                      )
-                      : CircleAvatar(
-                        // Fallback avatar
-                        radius: 24,
-                        backgroundColor: theme.colorScheme.primary.withOpacity(
-                          0.2,
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          color: theme.colorScheme.primary,
-                          size: 28,
-                        ),
-                      ),
-                  const SizedBox(width: 16),
-                  // Hiển thị Tên người dùng và lời chúc ngẫu nhiên
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Xin chào,',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: isDark ? Colors.grey[400] : Colors.grey[700],
-                        ),
-                      ),
-                      _isLoadingProfile
-                          ? Text(
-                            "Đang tải...",
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          )
-                          : Text(
-                            _userName, // Hiển thị tên người dùng
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                      // Hiển thị lời chúc ngẫu nhiên
-                      if (!_isLoadingProfile &&
-                          _currentRandomMessage.isNotEmpty)
-                        Text(
-                          _currentRandomMessage,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isDark ? Colors.grey[500] : Colors.grey[600],
-                          ),
-                        ),
-                    ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6B9DFF), Color(0xFFB085F0)],
                   ),
-                ],
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    // Hiển thị Avatar
+                    _isLoadingProfile
+                        ? CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white70,
+                          ),
+                        )
+                        : _avatarUrl != null && _avatarUrl!.isNotEmpty
+                        ? CircleAvatar(
+                          radius: 24,
+                          backgroundImage: NetworkImage(_avatarUrl!),
+                          onBackgroundImageError: (exception, stackTrace) {
+                            print(
+                              'Error loading avatar in HomeScreen: $exception',
+                            );
+                            // Có thể hiển thị một icon mặc định ở đây nếu muốn
+                          },
+                        )
+                        : CircleAvatar(
+                          // Fallback avatar
+                          radius: 24,
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          child: const Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                    const SizedBox(width: 16),
+                    // Hiển thị Tên người dùng và lời chúc ngẫu nhiên
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Xin chào,',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                          _isLoadingProfile
+                              ? Text(
+                                "Đang tải...",
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : Text(
+                                _userName, // Hiển thị tên người dùng
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                softWrap: true,
+                                overflow: TextOverflow.visible,
+                              ),
+                          // Hiển thị lời chúc ngẫu nhiên
+                          if (!_isLoadingProfile &&
+                              _currentRandomMessage.isNotEmpty)
+                            Text(
+                              _currentRandomMessage,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
 
               // Stats overview
               Container(
@@ -244,51 +256,47 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    // Hàng 1: Phiên tập trung và Thời gian hoàn thành
                     Row(
                       children: [
                         Expanded(
-                          child: _buildStatItem(
-                            context,
-                            Icons.watch_later_outlined, // Icon cho số phiên
+                          child: _buildStatBox(
+                            Icons.watch_later_outlined,
+                            'Phiên tập trung',
                             _isLoadingFocusStats
                                 ? '--'
-                                : _totalFocusSessions
-                                    .toString(), // Hiển thị số phiên hoặc placeholder
-                            'Phiên tập trung', // Label: Phiên tập trung
+                                : _totalFocusSessions.toString(),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _buildStatItem(
-                            context,
-                            Icons
-                                .access_time_outlined, // Icon cho tổng thời gian
+                          child: _buildStatBox(
+                            Icons.access_time_outlined,
+                            'Thời gian',
                             _isLoadingFocusStats
                                 ? '-- phút'
-                                : '${_totalCompletedFocusDurationMinutes} phút', // Hiển thị tổng thời gian hoặc placeholder
-                            'Thời gian hoàn thành', // Label: Tổng thời gian
+                                : '${_totalCompletedFocusDurationMinutes} phút',
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    // Hàng 2: Hiệu suất hoàn thành và Kế hoạch hoàn thành
                     Row(
                       children: [
                         Expanded(
-                          child: _buildStatItem(
-                            context,
-                            Icons.military_tech_outlined, // Icon cho hiệu suất
+                          child: _buildStatBox(
+                            Icons.military_tech_outlined,
+                            'Hiệu suất',
                             _isLoadingFocusStats
                                 ? '--%'
                                 : _totalFocusSessions > 0
                                 ? '${((_completedFocusSessions / _totalFocusSessions) * 100).toStringAsFixed(0)}%'
-                                : '0%', // Tính toán và hiển thị hiệu suất
-                            'Hiệu suất hoàn thành', // Label: Hiệu suất hoàn thành
+                                : '0%',
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Ô thống kê mới cho số lượng kế hoạch hôm nay
                         Expanded(
                           child: Consumer<PlanProvider>(
                             builder: (context, planProvider, child) {
@@ -300,11 +308,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       .where((plan) => plan.isCompleted)
                                       .length;
                               final totalPlans = todayPlans.length;
-                              return _buildStatItem(
-                                context,
+                              return _buildStatBox(
                                 Icons.assignment_outlined,
+                                'Kế hoạch',
                                 '$completedPlans/$totalPlans',
-                                'Kế hoạch hoàn thành',
                               );
                             },
                           ),
@@ -315,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Features section
               Text(
@@ -325,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Danh sách công việc của ngày hôm nay
               Consumer<PlanProvider>(
@@ -530,6 +537,106 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
               fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget để hiển thị chỉ icon + label (không có giá trị)
+  Widget _buildStatHeader(
+    IconData icon,
+    String label,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget để hiển thị chỉ giá trị (không có icon và label)
+  Widget _buildStatValue(String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget để hiển thị cả icon + label và giá trị trong cùng một box
+  Widget _buildStatBox(
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Icon + Label ở trên
+          Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Giá trị ở dưới
+          Center(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
           ),
         ],

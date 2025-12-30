@@ -13,6 +13,17 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
+    afterEvaluate {
+        extensions.findByType<com.android.build.gradle.BaseExtension>()?.apply {
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_11
+                targetCompatibility = JavaVersion.VERSION_11
+            }
+        }
+    }
+}
+
+subprojects {
     project.evaluationDependsOn(":app")
 }
 
