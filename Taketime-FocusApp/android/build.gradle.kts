@@ -20,6 +20,10 @@ subprojects {
                 targetCompatibility = JavaVersion.VERSION_11
             }
         }
+        // Apply Kotlin JVM target to all Kotlin compile tasks
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            kotlinOptions.jvmTarget = "11"
+        }
     }
 }
 
