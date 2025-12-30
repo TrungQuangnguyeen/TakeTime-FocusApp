@@ -35,7 +35,6 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  dart_frog: ^1.2.0
   glassmorphism: ^3.0.0
   google_fonts: ^6.1.0
   flutter_svg: ^2.0.10
@@ -56,6 +55,7 @@ dependencies:
   supabase_flutter: ^2.2.0 # Added for Supabase
   flutter_local_notifications: ^17.1.2  # Thêm dependency thông báo cục bộ
   timezone: ^0.9.3 # Thêm dependency xử lý múi giờ cho thông báo
+  google_maps_flutter: ^2.14.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3
