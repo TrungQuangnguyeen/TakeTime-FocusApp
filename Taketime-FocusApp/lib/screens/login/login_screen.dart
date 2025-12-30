@@ -262,38 +262,6 @@ class _LoginScreenState extends State<LoginScreen>
                                     },
                                   ),
                                 ),
-
-                                const SizedBox(height: 16),
-
-                                // Nút đăng nhập khách (giữ nguyên nếu cần)
-                                _buildSocialLoginButton(
-                                  // Giữ lại hàm này cho nút Khách
-                                  context,
-                                  "Tiếp tục với tư cách khách",
-                                  Colors.grey.shade700,
-                                  Icons.person_outline,
-                                  () async {
-                                    try {
-                                      await _authService
-                                          .signInAsGuest(); // Now uses Supabase anonymous sign-in
-                                      // onAuthStateChange in app.dart will handle navigation
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              "Lỗi đăng nhập khách: ${e.toString()}",
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  delayMs:
-                                      200, // So với FadeInUp gốc là 800 + 200 = 1000ms
-                                ),
                               ],
                             ),
                           ),
@@ -330,57 +298,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // Giữ lại hàm này nếu bạn vẫn dùng cho nút "Tiếp tục với tư cách khách"
-  // Hoặc bạn có thể tạo một widget riêng cho nút khách nếu muốn.
-  Widget _buildSocialLoginButton(
-    BuildContext context,
-    String text,
-    Color color,
-    IconData icon,
-    VoidCallback onPressed, {
-    required int delayMs,
-  }) {
-    return FadeInUp(
-      delay: Duration(
-        milliseconds: 800 + delayMs,
-      ), // Giữ nguyên logic delay gốc
-      child: Container(
-        width: double.infinity,
-        height: 50,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: ElevatedButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon, color: Colors.white, size: 22),
-          label: Flexible(
-            child: Text(
-              text,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -485,14 +485,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
-                            ),
-                            Text(
-                              'Nhấn icon ⚙️ phía trên để cấp quyền',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 12,
-                              ),
-                            ),
+                            ),                           
                           ],
                         ),
                       ),
@@ -527,19 +520,7 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                 );
               },
             ),
-
-            // Mô tả
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Text(
-                'Đặt giới hạn thời gian cho các ứng dụng để tập trung vào công việc',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-
+          
             // Thông báo ứng dụng đang bị khóa
             _buildLockedAppsNotification(),
 
@@ -556,26 +537,53 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _showAddAppDialog,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.add,
-                          color: Theme.of(context).primaryColor,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Thêm ứng dụng',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context).primaryColor,
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 44,
+                        child: TextButton.icon(
+                          onPressed: _showAddAppDialog,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: Icon(Icons.add, size: 18, color: Theme.of(context).primaryColor),
+                          label: Text(
+                            'Thêm',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Theme.of(context).primaryColor),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 44,
+                        child: TextButton.icon(
+                          onPressed:
+                              _blockedApps.isEmpty ? null : _showDeleteAppsDialog,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          label: Text(
+                            'Xóa',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -918,8 +926,217 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
     }
   }
 
+  // Hiển thị dialog chọn ứng dụng để xóa
+  void _showDeleteAppsDialog() {
+    if (_blockedApps.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không có ứng dụng để xóa',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final Set<String> selectedPackages = {};
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text(
+                  'Chọn ứng dụng để xóa',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: _blockedApps.isEmpty
+                      ? Text(
+                          'Không có ứng dụng nào trong danh sách.',
+                          style: GoogleFonts.poppins(),
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children:
+                                _blockedApps.map((app) {
+                                  final pkg = app['packageName'] as String;
+                                  final name = app['name'] as String;
+                                  final isChecked = selectedPackages.contains(pkg);
+
+                                  return CheckboxListTile(
+                                    value: isChecked,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          selectedPackages.add(pkg);
+                                        } else {
+                                          selectedPackages.remove(pkg);
+                                        }
+                                      });
+                                    },
+                                    title: Text(
+                                      name,
+                                      style: GoogleFonts.poppins(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Hủy', style: GoogleFonts.poppins()),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        selectedPackages.isEmpty
+                            ? null
+                            : () {
+                              setState(() {
+                                _blockedApps.removeWhere(
+                                  (app) => selectedPackages.contains(app['packageName']),
+                                );
+                                for (final pkg in selectedPackages) {
+                                  _appUsageTime.remove(pkg);
+                                  _isAppRunning.remove(pkg);
+                                  _appAlreadyBlocked.remove(pkg);
+                                  _lastLogTime.remove(pkg);
+                                }
+                              });
+                              _saveBlockedApps();
+                              Navigator.pop(context);
+                            },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('Xóa', style: GoogleFonts.poppins()),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+  // Hiển thị dialog chọn lịch trình để xóa
+  void _showDeleteSchedulesDialog(
+    List<Map<String, dynamic>> schedules,
+    void Function(VoidCallback fn) dialogSetState,
+    Map<String, dynamic> app,
+  ) {
+    if (schedules.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không có lịch trình để xóa',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final Set<int> selectedIndexes = {};
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                title: Text(
+                  'Chọn lịch trình để xóa',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: schedules.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final schedule = entry.value;
+                        final isChecked = selectedIndexes.contains(idx);
+                        final start = schedule['startTime'] ?? '';
+                        final end = schedule['endTime'] ?? '';
+                        final days = (schedule['days'] as List?)?.length ?? 0;
+
+                        return CheckboxListTile(
+                          value: isChecked,
+                          onChanged: (val) {
+                            setStateDialog(() {
+                              if (val == true) {
+                                selectedIndexes.add(idx);
+                              } else {
+                                selectedIndexes.remove(idx);
+                              }
+                            });
+                          },
+                          title: Text(
+                            'Lịch trình ${idx + 1}',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '$start - $end · $days ngày',
+                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Hủy', style: GoogleFonts.poppins()),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        selectedIndexes.isEmpty ||
+                                selectedIndexes.length == schedules.length
+                            ? null
+                            : () {
+                              dialogSetState(() {
+                                schedules.removeWhere(
+                                  (element) =>
+                                      selectedIndexes.contains(
+                                        schedules.indexOf(element),
+                                      ),
+                                );
+                                app['schedules'] = schedules;
+                              });
+                              _saveBlockedApps();
+                              Navigator.pop(context);
+                            },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('Xóa', style: GoogleFonts.poppins()),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
   void _showAddAppDialog() {
     String searchQuery = '';
+    final existingPackages = _blockedApps.map((e) => e['packageName'] as String).toSet();
 
     showDialog(
       context: context,
@@ -997,12 +1214,9 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                                           (app) =>
                                               app.packageName !=
                                                   'com.example.smartmanagementapp' &&
-                                              !app.packageName.startsWith(
-                                                'com.android',
-                                              ) &&
-                                              !app.packageName.startsWith(
-                                                'android',
-                                              ),
+                                              !app.packageName.startsWith('com.android') &&
+                                              !app.packageName.startsWith('android') &&
+                                              !existingPackages.contains(app.packageName),
                                         )
                                         .toList()
                                     : snapshot.data!
@@ -1013,12 +1227,9 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                                               ) &&
                                               app.packageName !=
                                                   'com.example.smartmanagementapp' &&
-                                              !app.packageName.startsWith(
-                                                'com.android',
-                                              ) &&
-                                              !app.packageName.startsWith(
-                                                'android',
-                                              ),
+                                              !app.packageName.startsWith('com.android') &&
+                                              !app.packageName.startsWith('android') &&
+                                              !existingPackages.contains(app.packageName),
                                         )
                                         .toList();
 
@@ -1093,6 +1304,20 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                                             style: GoogleFonts.poppins(),
                                           ),
                                           backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    // Chặn thêm trùng
+                                    if (existingPackages.contains(app.packageName)) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Ứng dụng này đã có trong danh sách',
+                                            style: GoogleFonts.poppins(),
+                                          ),
+                                          backgroundColor: Colors.orange,
                                         ),
                                       );
                                       return;
@@ -1254,13 +1479,18 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Cài đặt cho ${app['name']}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                            Expanded(
+                              child: Text(
+                                'Cài đặt cho ${app['name']}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                softWrap: true,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
+                            const SizedBox(width: 8),
                             IconButton(
                               icon: const Icon(Icons.close),
                               onPressed: () => Navigator.pop(context),
@@ -1462,100 +1692,70 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
                           );
                         }).toList(),
 
-                        // Nút thêm lịch trình mới
-                        Center(
-                          child: TextButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: Text(
-                              'Thêm lịch trình',
-                              style: GoogleFonts.poppins(),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                schedules.add({
-                                  'startTime': '08:00',
-                                  'endTime': '17:00',
-                                  'days': [1, 2, 3, 4, 5],
-                                  'active': false,
-                                });
-                              });
-                            },
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-                        const Divider(),
                         const SizedBox(height: 8),
 
-                        // Nút xóa ứng dụng khỏi danh sách
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              // Hiển thị hộp thoại xác nhận trước khi xóa
-                              showDialog(
-                                context: context,
-                                builder:
-                                    (context) => AlertDialog(
-                                      title: Text(
-                                        'Xóa khỏi danh sách',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      content: Text(
-                                        'Bạn có chắc chắn muốn xóa ${app['name']} khỏi danh sách giới hạn không?',
-                                        style: GoogleFonts.poppins(),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.pop(context),
-                                          child: Text(
-                                            'Hủy',
-                                            style: GoogleFonts.poppins(),
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            // Xóa ứng dụng khỏi danh sách và cập nhật
-                                            _blockedApps.removeWhere(
-                                              (a) =>
-                                                  a['packageName'] ==
-                                                  app['packageName'],
-                                            );
-                                            _saveBlockedApps();
-
-                                            // Đóng hai hộp thoại
-                                            Navigator.pop(
-                                              context,
-                                            ); // Đóng hộp thoại xác nhận
-                                            Navigator.pop(
-                                              context,
-                                            ); // Đóng hộp thoại cài đặt
-
-                                            // Cập nhật UI
-                                            setState(() {});
-                                          },
-                                          child: Text(
-                                            'Xóa',
-                                            style: GoogleFonts.poppins(
-                                              color: Colors.red,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                        // Nút Thêm và Xóa ở cùng 1 dòng
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 44,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.add, color: Colors.white),
+                                  label: Text(
+                                    'Thêm',
+                                    style: GoogleFonts.poppins(color: Colors.white),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                              );
-                            },
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      schedules.add({
+                                        'startTime': '08:00',
+                                        'endTime': '17:00',
+                                        'days': [1, 2, 3, 4, 5],
+                                        'active': false,
+                                      });
+                                    });
+                                  },
+                                ),
+                              ),
                             ),
-                            label: Text(
-                              'Xóa khỏi danh sách',
-                              style: GoogleFonts.poppins(color: Colors.red),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: SizedBox(
+                                height: 44,
+                                child: TextButton.icon(
+                                  onPressed:
+                                      schedules.isEmpty
+                                          ? null
+                                          : () => _showDeleteSchedulesDialog(
+                                            schedules,
+                                            setState,
+                                            app,
+                                          ),
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.white,
+                                  ),
+                                  label: Text(
+                                    'Xóa',
+                                    style: GoogleFonts.poppins(color: Colors.white),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
 
                         const SizedBox(height: 16),
@@ -1632,15 +1832,19 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        width: 35,
+        height: 35,
         decoration: BoxDecoration(
           color: isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
+          shape: BoxShape.circle,
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.poppins(
-            color: isSelected ? Colors.white : Colors.black,
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              color: isSelected ? Colors.white : Colors.black,
+              fontSize: 12,
+            ),
           ),
         ),
       ),

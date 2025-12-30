@@ -16,13 +16,13 @@ class GoogleLoginButton extends StatelessWidget {
         width: 30.0,
         cacheColorFilter: true,
       ),
-      label: const Text('Đăng nhập với Google'),
+      label: const Text('Google'),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.black,
         backgroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 50), // Full width
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
       ),
     );
   }

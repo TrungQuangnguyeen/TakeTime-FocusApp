@@ -279,7 +279,7 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildFocusModeCard(
-                            'Deep\nWork',
+                            'Deep Work',
                             '50 phút',
                             50,
                           ),

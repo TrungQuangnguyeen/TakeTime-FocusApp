@@ -94,6 +94,14 @@ class _FriendScreenState extends State<FriendScreen>
           labelColor: primaryColor,
           unselectedLabelColor: isDark ? Colors.white70 : Colors.black54,
           indicatorColor: primaryColor,
+          indicatorSize: TabBarIndicatorSize.tab,
+          indicator: UnderlineTabIndicator(
+            borderSide: BorderSide(
+              color: primaryColor,
+              width: 3,
+            ),
+            insets: const EdgeInsets.symmetric(horizontal: 8),
+          ),
           tabs: const [Tab(text: 'Bạn bè'), Tab(text: 'Tìm kiếm')],
         ),
       ),
