@@ -30,9 +30,6 @@ Future<void> main() async {
       // Đảm bảo lỗi Flutter được ghi nhận
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
-        if (kDebugMode) {
-          debugPrint('Flutter error: ${details.exception}');
-        }
       };
 
       runApp(
@@ -52,9 +49,6 @@ Future<void> main() async {
     },
     (Object error, StackTrace stack) {
       // Ghi lại lỗi thay vì cho ứng dụng crash
-      if (kDebugMode) {
-        debugPrint('Application error: $error\n$stack');
-      }
     },
   );
 }
