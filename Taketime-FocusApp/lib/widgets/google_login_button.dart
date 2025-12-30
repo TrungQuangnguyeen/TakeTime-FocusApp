@@ -12,8 +12,9 @@ class GoogleLoginButton extends StatelessWidget {
     return ElevatedButton.icon(
       icon: SvgPicture.asset(
         'assets/google_icon.svg',
-        height: 30.0, // Increased size
-        width: 30.0, // Increased size
+        height: 30.0,
+        width: 30.0,
+        cacheColorFilter: true,
       ),
       label: const Text('Đăng nhập với Google'),
       onPressed: onPressed,

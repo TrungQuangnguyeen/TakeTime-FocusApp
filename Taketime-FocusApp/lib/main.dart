@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:async';
-import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import 'app.dart';
 import 'providers/plan_provider.dart';
 import 'providers/user_provider.dart';
@@ -30,7 +30,9 @@ Future<void> main() async {
       // Đảm bảo lỗi Flutter được ghi nhận
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
-        log('Flutter error: ${details.exception}', error: details);
+        if (kDebugMode) {
+          debugPrint('Flutter error: ${details.exception}');
+        }
       };
 
       runApp(
@@ -50,7 +52,9 @@ Future<void> main() async {
     },
     (Object error, StackTrace stack) {
       // Ghi lại lỗi thay vì cho ứng dụng crash
-      log('Application error: $error', error: error, stackTrace: stack);
+      if (kDebugMode) {
+        debugPrint('Application error: $error\n$stack');
+      }
     },
   );
 }

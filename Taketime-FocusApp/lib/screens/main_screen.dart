@@ -52,11 +52,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _screens.clear();
     _screens.addAll([
       const HomeScreen(),
-      const PlanScreen(), // Đặt PlanScreen lên trước
-      const BlockedAppScreen(), // Chuyển BlockedAppScreen xuống sau
+      const PlanScreen(),
+      const BlockedAppScreen(),
       const FocusModeScreen(),
       const FriendScreen(),
-      // Pass the AuthService instance to ProfileScreen
       ProfileScreen(
         authService: _authService,
         onThemeChanged: widget.onThemeChanged,

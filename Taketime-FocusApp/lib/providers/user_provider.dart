@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import '../models/friend_request_model.dart'; // Correct import for FriendRequest
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProvider with ChangeNotifier {
@@ -41,9 +41,9 @@ class UserProvider with ChangeNotifier {
   void setAuthToken(String? token) {
     _accessToken = token;
     if (token != null) {
-      print(
-        '[UserProvider] Auth token set. Fetching current user, friends, and friend requests.',
-      );
+      if (kDebugMode) {
+        debugPrint('[UserProvider] Auth token set. Fetching current user, friends, and friend requests.');
+      }
       fetchCurrentUser().then((_) {
         if (_currentUser != null) {
           fetchFriends();
@@ -52,7 +52,9 @@ class UserProvider with ChangeNotifier {
         }
       });
     } else {
-      print('[UserProvider] Auth token cleared. Clearing user data.');
+      if (kDebugMode) {
+        debugPrint('[UserProvider] Auth token cleared. Clearing user data.');
+      }
       _currentUser = null;
       _friends = [];
       _incomingFriendRequests = [];
@@ -64,19 +66,17 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> fetchCurrentUser() async {
-    print('[UserProvider] fetchCurrentUser called.');
+    if (kDebugMode) {
+      debugPrint('[UserProvider] fetchCurrentUser called.');
+    }
     if (_accessToken == null) {
-      print(
-        '[UserProvider] fetchCurrentUser: _accessToken is null, returning.',
-      );
+      if (kDebugMode) {
+        debugPrint('[UserProvider] fetchCurrentUser: _accessToken is null, returning.');
+      }
       _currentUser = null;
       notifyListeners();
       return;
     }
-
-    print(
-      '[UserProvider] Current Access Token being used for /api/users/profile: $_accessToken',
-    );
 
     _isLoading = true;
     notifyListeners();
@@ -86,25 +86,26 @@ class UserProvider with ChangeNotifier {
         headers: _headers,
       );
 
-      print(
-        '[UserProvider] Fetch Current User Status Code: ${response.statusCode}',
-      );
-      print(
-        '[UserProvider] Fetch Current User Response Body: ${response.body}',
-      );
+      if (kDebugMode) {
+        debugPrint('[UserProvider] Fetch Current User Status Code: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> userData = jsonDecode(response.body);
         _currentUser = UserModel.fromJson(userData);
-        print(
-          '[UserProvider] fetchCurrentUser completed for user ID: ${_currentUser?.id}',
-        );
+        if (kDebugMode) {
+          debugPrint('[UserProvider] fetchCurrentUser completed for user ID: ${_currentUser?.id}');
+        }
       } else {
-        print('Failed to fetch current user: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint('Failed to fetch current user: ${response.statusCode}');
+        }
         await logout();
       }
     } catch (e) {
-      print('Exception fetching current user: $e');
+      if (kDebugMode) {
+        debugPrint('Exception fetching current user: $e');
+      }
       await logout();
     } finally {
       _isLoading = false;
