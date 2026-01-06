@@ -101,6 +101,11 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
         );
         _loadRealUsageData(); // Tải lại dữ liệu usage cho ngày mới
         _lastUsageLoadDate = today; // Cập nhật ngày tải dữ liệu cuối cùng
+        
+        // Reset trạng thái popup blocked apps cho ngày mới
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.remove('blocked_apps_today');
+        });
 
         // Reset trạng thái blocking nếu cần thiết (để đảm bảo chặn lại đúng ngày)
         // Có thể cần thêm phương thức trong AppBlockingService để reset trạng thái blocking theo ngày
@@ -341,62 +346,125 @@ class _BlockedAppScreenState extends State<BlockedAppScreen>
   }
 
   // Hiển thị cảnh báo khi ứng dụng bị chặn
-  void _showBlockingAlert(Map<String, dynamic> app) {
-    // Hiển thị thông báo chỉ khi ứng dụng bị chặn lần đầu tiên trong ngày
-    // hoặc khi người dùng cố gắng mở ứng dụng sau khi đã vượt quá giới hạn
+  void _showBlockingAlert(Map<String, dynamic> app) async {
+    // Chỉ hiển thị popup một lần mỗi lần vượt quá giới hạn
+    String packageName = app['packageName'];
+    
+    // Kiểm tra từ SharedPreferences để popup chỉ show một lần trong ngày
+    final prefs = await SharedPreferences.getInstance();
+    final blockedAppsToday = prefs.getStringList('blocked_apps_today') ?? [];
+    
+    if (blockedAppsToday.contains(packageName)) {
+      return; // Popup đã được show hôm nay, không show lại
+    }
 
     if (!mounted) return;
+
+    // Thêm ứng dụng vào danh sách đã block hôm nay
+    blockedAppsToday.add(packageName);
+    await prefs.setStringList('blocked_apps_today', blockedAppsToday);
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder:
-          (context) => AlertDialog(
-            title: Text(
-              'Ứng dụng bị chặn',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Bạn đã sử dụng "${app['name']}" quá thời gian cho phép hôm nay (${app['timeLimit']} phút).',
-                  style: GoogleFonts.poppins(),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Thử lại vào ngày mai hoặc thay đổi giới hạn thời gian.',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  'Đã hiểu',
-                  style: GoogleFonts.poppins(
-                    color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.bold,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
                   ),
-                ),
+                ],
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showAppSettingsDialog(app);
-                },
-                child: Text(
-                  'Thay đổi giới hạn',
-                  style: GoogleFonts.poppins(color: Colors.grey),
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFE5E5),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.lock_outline,
+                      size: 40,
+                      color: Color(0xFFE53935),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Title
+                  Text(
+                    'Ứng dụng đã khóa',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Message
+                  Text(
+                    'Bạn đã sử dụng "${app['name']}" hết thời gian cho phép (${app['timeLimit']} phút)',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Quay lại TakeTime để đặt lại thời gian',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Buttons
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C5CE7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Được rồi',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
     );
   }

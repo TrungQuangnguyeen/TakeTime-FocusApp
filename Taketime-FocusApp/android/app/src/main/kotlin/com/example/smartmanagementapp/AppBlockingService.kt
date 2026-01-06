@@ -27,6 +27,7 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
     private val timeLimit = mutableMapOf<String, Int>() // in minutes
     private val lastOpenTime = mutableMapOf<String, Long>()
     private var isEnabled = false
+    private val blockedAppsShownToday = mutableSetOf<String>() // Track apps already shown popup today
     
     // SAFETY: Define our own package name as a constant to prevent typos
     private val OWN_PACKAGE_NAME = "com.example.smartmanagementapp"
@@ -296,6 +297,12 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
             return
         }
         
+        // Check if we already shown popup for this app today
+        if (blockedAppsShownToday.contains(packageName)) {
+            Log.d(TAG, "DEBUG BLOCK: Popup already shown for $packageName today. Skipping.")
+            return
+        }
+        
         Log.d(TAG, "DEBUG BLOCK: Blocking app with activity - Package: $packageName")
         Log.d(TAG, "DEBUG BLOCK: OWN_PACKAGE_NAME: $OWN_PACKAGE_NAME")
         
@@ -311,6 +318,9 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
                  Log.d(TAG, "DEBUG BLOCK: App $packageName is now within limit or has no limit after final check. Aborting block.")
                  return
             }
+            
+            // Mark this app as shown today BEFORE starting activity
+            blockedAppsShownToday.add(packageName)
             
             // Khởi động AppBlockedActivity
             val blockedIntent = Intent(this, AppBlockedActivity::class.java).apply {
@@ -328,9 +338,6 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
             // Có thể dừng OverlayBlockingService nếu nó đang chạy từ lần chặn trước
             val stopOverlayIntent = Intent(this, OverlayBlockingService::class.java)
             stopService(stopOverlayIntent)
-
-            // Send notification to Flutter (optional, maybe AppBlockedActivity handles this)
-            // sendBlockingNotificationToFlutter(packageName)
 
             Log.d(TAG, "DEBUG BLOCK: Successfully started blocking activity for: $packageName")
             
@@ -443,6 +450,15 @@ class AppBlockingService : AccessibilityService(), OnSharedPreferenceChangeListe
     // Restored loadBlockedApps method
     private fun loadBlockedApps() {
         try {
+            // Reset blocked apps shown today if date changed
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+            val lastResetDate = sharedPrefs.getString("last_blocked_reset_date", "")
+            if (lastResetDate != today) {
+                Log.d(TAG, "DEBUG LOAD: Date changed, clearing shown apps list.")
+                blockedAppsShownToday.clear()
+                sharedPrefs.edit().putString("last_blocked_reset_date", today).apply()
+            }
+            
             // Use Flutter SharedPreferences key format
             val blockedAppsKey = "flutter.blocked_apps"
             val usageTimeKey = "flutter.app_usage_time"

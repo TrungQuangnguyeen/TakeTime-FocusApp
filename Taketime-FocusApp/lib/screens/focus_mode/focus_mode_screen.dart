@@ -66,8 +66,8 @@ class _FocusModeScreenState extends State<FocusModeScreen>
     // Lấy dữ liệu local
     final localSessions =
         Provider.of<FocusSessionProvider>(context, listen: false).sessions;
-    _serverSessions =
-        data.map<FocusSession>((item) {
+    
+    final allSessions = data.map<FocusSession>((item) {
           final resultStr =
               (item['result'] ?? '').toString().trim().toLowerCase();
           // Tìm session local có cùng id (modeId)
@@ -102,6 +102,11 @@ class _FocusModeScreenState extends State<FocusModeScreen>
             completed: resultStr == 'completed',
           );
         }).toList();
+    
+    // Sắp xếp theo ngày gần nhất và lấy 5 phiên đầu tiên
+    allSessions.sort((a, b) => b.startTime.compareTo(a.startTime));
+    _serverSessions = allSessions.take(5).toList();
+    
     setState(() {
       _loadingHistory = false;
     });
@@ -494,7 +499,7 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                   FadeInUp(
                     duration: const Duration(milliseconds: 1100),
                     child: Text(
-                      'Lịch sử phiên làm việc',
+                      'Lịch sử tập trung gần nhất',
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -559,10 +564,7 @@ class _FocusModeScreenState extends State<FocusModeScreen>
                           child: ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount:
-                                _serverSessions.length > 5
-                                    ? 5
-                                    : _serverSessions.length,
+                            itemCount: _serverSessions.length,
                             separatorBuilder:
                                 (context, index) => const Divider(
                                   height: 1,
@@ -639,8 +641,10 @@ class _FocusModeScreenState extends State<FocusModeScreen>
   }
 
   Widget _buildSessionItemFromData(FocusSession session) {
+    // Convert từ UTC sang Vietnam Time (UTC+7)
+    final vietnamTime = session.startTime.add(const Duration(hours: 7));
     final DateFormat dateFormat = DateFormat('HH:mm, d/M');
-    final String timeText = dateFormat.format(session.startTime);
+    final String timeText = dateFormat.format(vietnamTime);
     final int duration = session.durationMinutes; // Luôn lấy số phút đặt ra
     final String durationText = '$duration phút';
     final bool isCompleted = session.completed;

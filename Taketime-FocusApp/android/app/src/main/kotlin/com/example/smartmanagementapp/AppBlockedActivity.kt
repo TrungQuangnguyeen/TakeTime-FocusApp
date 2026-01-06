@@ -2,18 +2,43 @@ package com.example.smartmanagementapp
 
 import android.app.Activity
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
-import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.graphics.Color
+import java.text.SimpleDateFormat
+import java.util.*
 
 class AppBlockedActivity : Activity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Make this a full-screen overlay that can't be dismissed
+        val blockedPackage = intent.getStringExtra("blocked_package")
+        
+        // Kiểm tra xem ứng dụng này đã show popup hôm nay chưa
+        if (blockedPackage != null && isAlreadyShownToday(blockedPackage)) {
+            // Nếu đã show rồi, đóng activity và quay về home
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(homeIntent)
+            finish()
+            return
+        }
+        
+        // Lưu trạng thái đã show popup
+        if (blockedPackage != null) {
+            markAsShownToday(blockedPackage)
+        }
+        
+        // Make this a full-screen overlay
         window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
@@ -28,92 +53,102 @@ class AppBlockedActivity : Activity() {
         )
         
         setContentView(createBlockingView())
-        
-        // Prevent going back
         overridePendingTransition(0, 0)
         
-        // Log that blocking screen is shown
-        android.util.Log.d("AppBlockedActivity", "Blocking screen shown for: ${intent.getStringExtra("blocked_package")}")
+        android.util.Log.d("AppBlockedActivity", "Blocking screen shown for: $blockedPackage")
     }
 
-    private fun createBlockingView(): View {
-        // Create the blocking UI programmatically
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setBackgroundColor(android.graphics.Color.parseColor("#FF1744"))
-            setPadding(64, 64, 64, 64)
+    private fun createBlockingView(): LinearLayout {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            setPadding(32, 48, 32, 48)
             gravity = android.view.Gravity.CENTER
         }
 
-        // App blocked icon
-        val iconView = android.widget.ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_delete) // Use system icon
-            layoutParams = android.widget.LinearLayout.LayoutParams(200, 200).apply {
+        // Icon container with rounded background
+        val iconContainer = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#FFE5E5"))
+            layoutParams = LinearLayout.LayoutParams(100, 100).apply {
                 gravity = android.view.Gravity.CENTER
+                bottomMargin = 24
+            }
+            clipToOutline = true
+            // Create rounded outline manually
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, 50f)
+                }
+            }
+        }
+        
+        val iconView = ImageView(this).apply {
+            setImageResource(android.R.drawable.ic_menu_view)
+            setColorFilter(Color.parseColor("#E53935"))
+            layoutParams = FrameLayout.LayoutParams(60, 60).apply {
+                gravity = android.view.Gravity.CENTER
+            }
+        }
+        iconContainer.addView(iconView)
+
+        // Title
+        val titleView = TextView(this).apply {
+            text = "Ứng dụng đã khóa"
+            textSize = 20f
+            setTextColor(Color.parseColor("#212121"))
+            gravity = android.view.Gravity.CENTER
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = 12
+            }
+        }
+
+        val appName = intent.getStringExtra("app_name") ?: "Ứng dụng"
+        val timeLimit = intent.getIntExtra("time_limit", 0)
+        
+        // Message
+        val messageView = TextView(this).apply {
+            text = "Bạn đã sử dụng \"$appName\" hết thời gian cho phép ($timeLimit phút)"
+            textSize = 14f
+            setTextColor(Color.parseColor("#616161"))
+            gravity = android.view.Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = 8
+            }
+        }
+        
+        // Subtitle
+        val subtitleView = TextView(this).apply {
+            text = "Quay lại TakeTime để đặt lại thời gian"
+            textSize = 13f
+            setTextColor(Color.parseColor("#9E9E9E"))
+            gravity = android.view.Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
                 bottomMargin = 32
             }
         }
 
-        // Title
-        val titleView = TextView(this).apply {
-            text = "Ứng dụng bị chặn"
-            textSize = 24f
-            setTextColor(android.graphics.Color.WHITE)
-            gravity = android.view.Gravity.CENTER
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = 24
-                gravity = android.view.Gravity.CENTER
-            }
-        }
-
-        // App info
-        val appName = intent.getStringExtra("app_name") ?: "Ứng dụng"
-        val timeLimit = intent.getIntExtra("time_limit", 0)
-        val usageTime = intent.getLongExtra("usage_time", 0)
-        
-        val messageView = TextView(this).apply {
-            text = "Bạn đã sử dụng \"$appName\" quá thời gian cho phép hôm nay.\n\n" +
-                   "Thời gian sử dụng: $usageTime phút\n" +
-                   "Giới hạn: $timeLimit phút\n\n" +
-                   "Thử lại vào ngày mai hoặc thay đổi giới hạn thời gian."
-            textSize = 16f
-            setTextColor(android.graphics.Color.WHITE)
-            gravity = android.view.Gravity.CENTER
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = 48
-            }
-        }
-
-        // Buttons container
-        val buttonContainer = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
         // OK Button
         val okButton = Button(this).apply {
-            text = "Đã hiểu"
-            setBackgroundColor(android.graphics.Color.WHITE)
-            setTextColor(android.graphics.Color.parseColor("#FF1744"))
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                rightMargin = 24
-            }
+            text = "Được rồi"
+            setBackgroundColor(Color.parseColor("#6C5CE7"))
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            setPadding(0, 14, 0, 14)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
             setOnClickListener {
-                // Go to home screen
                 val homeIntent = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_HOME)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -123,40 +158,31 @@ class AppBlockedActivity : Activity() {
             }
         }
 
-        // Settings Button
-        val settingsButton = Button(this).apply {
-            text = "Cài đặt"
-            setBackgroundColor(android.graphics.Color.parseColor("#FFAB40"))
-            setTextColor(android.graphics.Color.WHITE)
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setOnClickListener {
-                // Open the main app
-                val mainIntent = packageManager.getLaunchIntentForPackage("com.example.smartmanagementapp")
-                if (mainIntent != null) {
-                    mainIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    startActivity(mainIntent)
-                }
-                finish()
-            }
-        }
-
-        buttonContainer.addView(okButton)
-        buttonContainer.addView(settingsButton)
-
-        layout.addView(iconView)
+        layout.addView(iconContainer)
         layout.addView(titleView)
         layout.addView(messageView)
-        layout.addView(buttonContainer)
+        layout.addView(subtitleView)
+        layout.addView(okButton)
 
         return layout
     }
 
+    private fun isAlreadyShownToday(packageName: String): Boolean {
+        val prefs = getSharedPreferences("BlockedAppsState", MODE_PRIVATE)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val key = "blocked_$packageName"
+        val lastDate = prefs.getString(key, "")
+        return lastDate == today
+    }
+
+    private fun markAsShownToday(packageName: String) {
+        val prefs = getSharedPreferences("BlockedAppsState", MODE_PRIVATE)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val key = "blocked_$packageName"
+        prefs.edit().putString(key, today).apply()
+    }
+
     override fun onBackPressed() {
-        // Prevent going back - do nothing
-        // Or optionally go to home screen
         val homeIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_HOME)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -167,27 +193,16 @@ class AppBlockedActivity : Activity() {
 
     override fun onPause() {
         super.onPause()
-        // Don't allow this activity to be paused unless going to our main app or home
-        android.util.Log.d("AppBlockedActivity", "Activity paused, finishing")
         finish()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        android.util.Log.d("AppBlockedActivity", "Blocking activity destroyed")
-    }
-
-    // Prevent recent apps button from bypassing
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (!hasFocus) {
-            android.util.Log.d("AppBlockedActivity", "Window lost focus, bringing to front")
-            // Bring this activity back to front
             val intent = Intent(this, AppBlockedActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
-                // Copy extras from current intent
                 putExtras(getIntent().extras ?: Bundle())
             }
             startActivity(intent)
